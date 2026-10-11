@@ -1,0 +1,15 @@
+<details class="help" open>
+  <summary>
+    <svg class="icon"><use href="#i-help"/></svg>
+    <span>How this step works</span>
+  </summary>
+  <dl class="help-grid">
+    <div><dt>What it does</dt><dd x-text="setMeta().help.what"></dd></div>
+    <div><dt>When you need it</dt><dd x-text="setMeta().help.when"></dd></div>
+    <div><dt>Where it is in AD FS</dt><dd x-text="setMeta().help.where"></dd></div>
+    <div><dt>Example</dt><dd x-text="setMeta().help.example"></dd></div>
+  </dl>
+  <template x-if="setMeta().help.caution">
+    <p class="notice"><svg class="icon"><use href="#i-alert"/></svg><span x-text="setMeta().help.caution"></span></p>
+  </template>
+</details>

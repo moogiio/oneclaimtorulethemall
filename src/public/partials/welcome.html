@@ -1,0 +1,28 @@
+<section class="welcome" aria-labelledby="welcome-title">
+  <div class="stack">
+    <h1 id="welcome-title" tabindex="-1">Let's set up your AD FS claim rules</h1>
+    <p class="lead">Pick how you want to start. Nothing changes in AD FS until you export a script and your AD FS admin runs it.</p>
+  </div>
+  <div class="welcome-cards">
+    <button type="button" class="welcome-card" @click="openWizard()">
+      <svg class="icon"><use href="#i-wand"/></svg>
+      <strong>Set up an application</strong>
+      <span>Answer a few questions about the application, for example Zoom or your expenses app. Access and claims are set up for you.</span>
+    </button>
+    <button type="button" class="welcome-card" @click="openFarm()">
+      <svg class="icon"><use href="#i-download"/></svg>
+      <strong>Import my AD FS setup</strong>
+      <span>Your AD FS admin runs a read-only script. Every application and identity provider then shows up here, in plain words.</span>
+    </button>
+    <button type="button" class="welcome-card" @click="loadExample()">
+      <svg class="icon"><use href="#i-play"/></svg>
+      <strong>Look around with an example</strong>
+      <span>Two applications, a partner company and test users, so you can see who gets in and why before you start.</span>
+    </button>
+  </div>
+  <ol class="welcome-steps">
+    <li><strong>Describe</strong> who may sign in to each application and what it needs to know about them.</li>
+    <li><strong>Try it</strong> with made-up test users and see exactly what each one gets.</li>
+    <li><strong>Export</strong> one PowerShell script. Run on the AD FS server, it shows the changes and asks before applying them.</li>
+  </ol>
+</section>

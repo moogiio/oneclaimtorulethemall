@@ -1,0 +1,41 @@
+<header class="topbar">
+  <a class="brand" href="/" title="Start page">
+    <svg class="icon"><use href="#i-shield"/></svg>
+    <span>OneClaim<b>ToRule</b>ThemAll</span>
+  </a>
+  <label class="sr-only" for="ws-name">Workspace name</label>
+  <input id="ws-name" class="input input-title ws-name" x-model="ws.name" maxlength="200" autocomplete="off">
+  <div class="spacer"></div>
+  <span class="save-state" :class="saveState" role="status" aria-live="polite" :title="saveError">
+    <svg class="icon icon-sm" x-show="saveState === 'saved'"><use href="#i-check"/></svg>
+    <svg class="icon icon-sm" x-show="saveState === 'error' || saveState === 'conflict'"><use href="#i-alert"/></svg>
+    <span x-text="saveLabel()"></span>
+  </span>
+  <div class="row history" role="group" aria-label="Undo and redo">
+    <button class="btn btn-ghost btn-icon" type="button" @click="undo()" :disabled="!canUndo()" aria-label="Undo" title="Undo (Ctrl+Z)">
+      <svg class="icon"><use href="#i-undo"/></svg>
+    </button>
+    <button class="btn btn-ghost btn-icon" type="button" @click="redo()" :disabled="!canRedo()" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+      <svg class="icon"><use href="#i-redo"/></svg>
+    </button>
+  </div>
+  <template x-if="saveState === 'error'">
+    <button class="btn" type="button" @click="save()">Retry</button>
+  </template>
+  <template x-if="saveState === 'conflict'">
+    <button class="btn btn-primary" type="button" @click="reload()">Reload</button>
+  </template>
+  <button class="btn" type="button" @click="openFarm()" title="Read the rules of every trust from your AD FS farm">
+    <svg class="icon"><use href="#i-download"/></svg> Import from AD FS
+  </button>
+  <button class="btn" type="button" @click="openExport('all')" :disabled="!ws.profiles.length"
+    title="One PowerShell script for every application and identity provider">
+    <svg class="icon"><use href="#i-code"/></svg> Export all
+  </button>
+  <button class="btn" type="button" @click="copyLink()">
+    <svg class="icon"><use href="#i-link"/></svg> Copy link
+  </button>
+  <button class="btn btn-ghost btn-danger btn-icon" type="button" @click="askDelete('workspace')" aria-label="Delete workspace" title="Delete workspace">
+    <svg class="icon"><use href="#i-trash"/></svg>
+  </button>
+</header>

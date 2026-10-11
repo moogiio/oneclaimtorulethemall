@@ -1,0 +1,13 @@
+# Netlify: static pages from dist/public, the API as a function
+# (netlify/functions/api.mjs) with workspaces in Netlify Blobs.
+# The build writes _headers, _redirects and robots.txt into dist/public.
+[build]
+  command = "npm run build"
+  publish = "dist/public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"

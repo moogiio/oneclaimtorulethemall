@@ -1,0 +1,113 @@
+<section aria-labelledby="rules-title">
+  <div class="page-head">
+    <div class="grow">
+      <h1 id="rules-title" tabindex="-1">Rule library</h1>
+      <p class="muted">Rules you reuse across applications and identity providers, such as “Send e-mail” or “Permit
+        Salesforce users”. Change a rule here and every place that uses it gets the change.</p>
+    </div>
+    <button class="btn btn-primary" type="button" @click="addLibRule()">
+      <svg class="icon"><use href="#i-plus"/></svg> New rule
+    </button>
+  </div>
+
+  <div class="library">
+    <div class="claim-list">
+      <template x-if="ws.rules.length">
+        <div class="stack-sm">
+          <label class="search">
+            <span class="sr-only">Search the rule library</span>
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-search"/></svg>
+            <input id="lib-search" class="input" type="search" x-model="libQuery" placeholder="Search by name, claim, attribute or group"
+              autocomplete="off" spellcheck="false" @keydown.escape="clearLibQuery()">
+          </label>
+          <span class="hint" role="status" aria-live="polite" x-text="libSearchStatus()"></span>
+        </div>
+      </template>
+      <template x-for="rule in filteredLibRules()" :key="rule.id">
+        <button type="button" class="claim-item" :class="{ on: isSelectedLibRule(rule) }" @click="selectLibRule(rule)"
+          :aria-pressed="isSelectedLibRule(rule) ? 'true' : 'false'">
+          <span class="title">
+            <span x-text="ruleTitle(rule)"></span>
+            <template x-if="libRuleHasErrors(rule)"><span class="badge error">Needs fixing</span></template>
+          </span>
+          <span class="sub" x-text="ruleSubtitle(rule) + ' · used ' + libRuleUsage(rule).length + ' time(s)'"></span>
+        </button>
+      </template>
+      <template x-if="ws.rules.length && !filteredLibRules().length">
+        <div class="empty">No rule matches “<span x-text="libQuery.trim()"></span>”.
+          <button class="btn btn-ghost" type="button" @click="clearLibQuery()">Clear search</button></div>
+      </template>
+      <template x-if="!ws.rules.length">
+        <div class="empty">No rules yet. Click <strong>New rule</strong>, or open an application and use
+          <strong>Save to rule library</strong> on a rule you want to reuse.</div>
+      </template>
+    </div>
+
+    <template x-for="rule in [selectedLibRule()]" :key="rule ? rule.id : 'none'">
+      <div class="card editor stack" x-show="rule">
+        <template x-if="rule">
+          <div class="stack">
+            <div class="card-head">
+              <h2 x-text="ruleTitle(rule)"></h2>
+              <div class="spacer"></div>
+              <button class="btn" type="button" @click="openAddTo(rule)" :disabled="!ws.profiles.length"
+                title="Link this rule into several applications or identity providers at once">
+                <svg class="icon"><use href="#i-link"/></svg> Add to…
+              </button>
+              <button class="btn btn-ghost btn-danger" type="button" @click="deleteLibRule(rule)">
+                <svg class="icon"><use href="#i-trash"/></svg> Delete
+              </button>
+            </div>
+
+            <label class="field"><span>Name</span>
+              <input id="librule-name" class="input" x-model="rule.label" maxlength="200" autocomplete="off"
+                placeholder="e.g. Permit Salesforce users">
+            </label>
+
+            <div class="field">
+              <span id="kind-label">What the rule does</span>
+              <div class="seg" role="group" aria-labelledby="kind-label">
+                <template x-for="k in libraryKinds()" :key="k.key">
+                  <button type="button" :class="{ on: rule.kind === k.key }" :aria-pressed="rule.kind === k.key ? 'true' : 'false'"
+                    :disabled="!canChangeKind(rule) && rule.kind !== k.key" @click="setLibRuleKind(rule, k.key)" x-text="k.label"></button>
+                </template>
+              </div>
+              <template x-if="!canChangeKind(rule)">
+                <span class="hint">The type is locked while the rule is in use, so it never ends up in a step where it does not belong.</span>
+              </template>
+            </div>
+
+            <template x-if="rule.kind === 'claim'">
+              <!-- @include partials/claimfields.html -->
+            </template>
+
+            <template x-if="rule.kind !== 'raw'">
+              <!-- @include partials/conditions.html -->
+            </template>
+            <template x-if="rule.kind === 'raw'">
+              <label class="field"><span>Rule text</span>
+                <textarea class="textarea mono" x-model="rule.text" spellcheck="false" rows="8"></textarea>
+              </label>
+            </template>
+
+            <template x-if="libRuleIssues(rule).length">
+              <ul class="issues">
+                <template x-for="(item, n) in libRuleIssues(rule)" :key="n">
+                  <!-- @include partials/issue.html -->
+                </template>
+              </ul>
+            </template>
+
+            <div class="field"><span>In plain words</span>
+              <p class="plain"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-info"/></svg><span x-text="ruleExplanation(rule)"></span></p>
+            </div>
+            <div class="field"><span>Generated rule</span>
+              <pre tabindex="0" class="code compact" x-text="libRulePreview(rule)" aria-label="Generated rule"></pre>
+            </div>
+            <p class="hint" x-text="libRuleUsageText(rule)"></p>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+</section>

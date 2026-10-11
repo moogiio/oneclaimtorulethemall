@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Workspace · OneClaimToRuleThemAll</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/vendor/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/features.css">
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <!-- @include partials/icons.html -->
+  <div x-data="app" x-cloak @keydown.window="onShortcut($event)">
+    <template x-if="loading">
+      <div class="landing"><p class="muted" role="status">Loading workspace…</p></div>
+    </template>
+
+    <template x-if="loadError">
+      <div class="landing">
+        <div class="landing-card">
+          <h1>Can't open this workspace</h1>
+          <p class="lead" x-text="loadError"></p>
+          <div><a class="btn btn-primary" href="/">Create a new workspace</a></div>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="ws && !loadError">
+      <div class="app">
+        <!-- @include partials/topbar.html -->
+        <div class="shell">
+          <!-- @include partials/sidebar.html -->
+          <main class="main" id="main">
+            <template x-if="showWelcome()">
+              <!-- @include partials/welcome.html -->
+            </template>
+            <template x-if="isRuleLibrary() && !showWelcome()">
+              <!-- @include partials/rulelib.html -->
+            </template>
+            <template x-if="isOverview()">
+              <!-- @include partials/overview.html -->
+            </template>
+            <template x-if="isProfileView()">
+              <!-- @include partials/profile.html -->
+            </template>
+          </main>
+        </div>
+        <datalist id="claim-types">
+          <template x-for="t in claimTypeOptions()" :key="t.uri">
+            <option :value="t.uri" x-text="t.label"></option>
+          </template>
+        </datalist>
+        <datalist id="ad-attributes">
+          <template x-for="a in catalog.AD_ATTRIBUTES" :key="a.name">
+            <option :value="a.name" x-text="a.label"></option>
+          </template>
+        </datalist>
+      </div>
+    </template>
+
+    <!-- @include partials/import.html -->
+    <!-- @include partials/delete.html -->
+    <!-- @include partials/export.html -->
+    <!-- @include partials/addto.html -->
+    <!-- @include partials/tryit.html -->
+    <!-- @include partials/farm.html -->
+    <!-- @include partials/template.html -->
+    <!-- @include partials/wizard.html -->
+    <!-- @include partials/glossary.html -->
+    <!-- @include partials/troubleshoot.html -->
+    <!-- @include partials/partner.html -->
+
+    <div class="toast" :class="toastKind" x-show="toastText" x-transition.opacity role="status" aria-live="polite">
+      <span x-text="toastText"></span>
+      <template x-if="toastAction">
+        <button class="toast-action" type="button" @click="runToastAction()" x-text="toastAction.label"></button>
+      </template>
+    </div>
+  </div>
+  <noscript><p class="landing">This app needs JavaScript.</p></noscript>
+</body>
+</html>

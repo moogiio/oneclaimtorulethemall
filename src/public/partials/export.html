@@ -1,0 +1,128 @@
+<dialog x-ref="exportDialog" class="dialog-export" aria-labelledby="export-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="export-title" x-text="exportTitle()"></h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeExport()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <template x-if="isProfileView()">
+      <div class="seg" role="group" aria-label="What to export">
+        <button type="button" :class="{ on: exportScope === 'one' }" :aria-pressed="exportScope === 'one' ? 'true' : 'false'"
+          @click="setExportScope('one')" x-text="exportOneLabel()"></button>
+        <button type="button" :class="{ on: exportScope === 'all' }" :aria-pressed="exportScope === 'all' ? 'true' : 'false'"
+          @click="setExportScope('all')" x-text="exportAllLabel()"></button>
+      </div>
+    </template>
+    <div class="seg" role="group" aria-label="How to apply it">
+      <button type="button" :class="{ on: exportView === 'script' }" :aria-pressed="exportView === 'script' ? 'true' : 'false'"
+        @click="setExportView('script')">PowerShell script</button>
+      <button type="button" :class="{ on: exportView === 'manual' }" :aria-pressed="exportView === 'manual' ? 'true' : 'false'"
+        @click="setExportView('manual')">Step by step in AD FS Management</button>
+    </div>
+    <template x-if="exportNotes.length">
+      <ul class="issues">
+        <template x-for="(item, n) in exportNotes" :key="n">
+          <li class="issue" :class="item.severity">
+            <svg class="icon" x-show="item.severity === 'error'"><use href="#i-error"/></svg>
+            <svg class="icon" x-show="item.severity === 'warning'"><use href="#i-alert"/></svg>
+            <svg class="icon" x-show="item.severity === 'info'"><use href="#i-info"/></svg>
+            <span x-text="item.message"></span>
+          </li>
+        </template>
+      </ul>
+    </template>
+    <template x-if="exportView === 'manual'">
+      <div class="stack manual">
+        <p class="hint">For admins who prefer clicking. Do these steps in AD FS Management on the primary AD FS server, in this
+          order. The PowerShell script does the same in one go, and checks and backs up first.</p>
+        <template x-if="!exportManual.length">
+          <div class="empty">Nothing to do yet. Add rules or an access control policy, and fix any errors listed above.</div>
+        </template>
+        <template x-for="entry in exportManual" :key="entry.id">
+          <section class="manual-trust stack-sm">
+            <h3 x-text="entry.name + ' (' + entry.kind + ')'"></h3>
+            <template x-if="entry.create.length">
+              <div class="stack-sm">
+                <h4>Create the trust, if AD FS does not have it yet</h4>
+                <ol class="manual-steps"><template x-for="(line, n) in entry.create" :key="n"><li x-text="line"></li></template></ol>
+                <template x-if="entry.metadata">
+                  <div><button class="btn" type="button" @click="downloadManualMetadata(entry)">
+                    <svg class="icon icon-sm"><use href="#i-download"/></svg> Download the metadata file
+                  </button></div>
+                </template>
+              </div>
+            </template>
+            <template x-for="(section, s) in entry.sections" :key="s">
+              <div class="stack-sm">
+                <h4 x-text="section.title"></h4>
+                <ol class="manual-steps"><template x-for="(line, n) in section.steps" :key="n"><li x-text="line"></li></template></ol>
+                <template x-if="section.rules && section.rules.length">
+                  <ol class="manual-rules">
+                    <template x-for="(rule, r) in section.rules" :key="r">
+                      <li class="stack-sm">
+                        <div class="row">
+                          <strong class="grow-1" x-text="(r + 1) + '. ' + rule.name"></strong>
+                          <button class="btn" type="button" @click="copyManualRule(entry, s, r)">
+                            <svg class="icon icon-sm"><use href="#i-copy"/></svg><span x-text="manualCopyLabel(entry, s, r)"></span>
+                          </button>
+                        </div>
+                        <pre tabindex="0" class="code compact" x-text="rule.text" :aria-label="'Rule ' + rule.name"></pre>
+                        <template x-if="rule.groups.length">
+                          <div class="notice"><svg class="icon"><use href="#i-info"/></svg>
+                            <div class="stack-sm"><span>This rule names AD groups. Before you paste it, replace each {SID of …} with the
+                              group's SID in quotes, like "S-1-5-21-…". This shows the SID, in PowerShell on the AD FS server:</span>
+                              <template x-for="g in rule.groups" :key="g"><code class="cmd" x-text="sidCommand(g)"></code></template>
+                            </div>
+                          </div>
+                        </template>
+                      </li>
+                    </template>
+                  </ol>
+                </template>
+              </div>
+            </template>
+          </section>
+        </template>
+        <template x-if="exportManual.length">
+          <p class="hint">Afterwards, test by signing in to each application with a test account. If it fails, Event Viewer on
+            the AD FS server shows why, under Applications and Services Logs, AD FS, Admin.</p>
+        </template>
+      </div>
+    </template>
+    <template x-if="exportScript && exportView === 'script'">
+      <div class="stack">
+        <ol class="export-steps">
+          <li><strong>Copy</strong> the script with the button below.</li>
+          <li>On the primary AD FS server, open <strong>Windows PowerShell as administrator</strong> (right-click it, then Run as
+            administrator).</li>
+          <li><strong>Paste</strong> the script and press Enter.</li>
+          <li>Read what it says will change on each trust. Type <strong>Y</strong> to apply it, anything else cancels.</li>
+          <li><strong>Test</strong> by signing in to the application with a test account. If it fails, Event Viewer on the AD FS
+            server shows why, under Applications and Services Logs, AD FS, Admin.
+            <button class="btn-link" type="button" @click="openTroubleshoot()">Paste the error here</button> to get it explained.</li>
+          <li><strong>Check</strong> any time later by running the same script again. When AD FS has exactly these settings, it says
+            "Nothing to change" and asks nothing.</li>
+        </ol>
+        <p class="hint">It looks up AD group names and checks everything before it changes anything. If applying fails, every trust
+          it changed goes back to how it was, and the old settings are saved in a backup file. Trust names must match AD FS
+          Management.</p>
+        <pre tabindex="0" class="code export-code" x-text="exportScript" aria-label="PowerShell script"></pre>
+      </div>
+    </template>
+    <template x-if="!exportScript && exportView === 'script'">
+      <div class="empty">Nothing to export yet. Add rules to at least one step, and fix any errors listed above.</div>
+    </template>
+    <div class="row row-wrap">
+      <span class="small" :class="{ 'copy-error': exportCopyError() }" role="status" aria-live="polite" x-text="exportCopyError()"></span>
+      <div class="spacer"></div>
+      <button id="export-close" class="btn" type="button" @click="closeExport()">Close</button>
+      <button id="export-copy" class="btn btn-primary" type="button" @click="copyExport()" :disabled="!exportScript" x-show="exportView === 'script'">
+        <svg class="icon" x-show="exportCopy !== 'copied'"><use href="#i-copy"/></svg>
+        <svg class="icon" x-show="exportCopy === 'copied'"><use href="#i-check"/></svg>
+        <span x-text="exportCopyLabel()"></span>
+      </button>
+    </div>
+  </div>
+</dialog>

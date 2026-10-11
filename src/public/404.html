@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>404 · No rule issued this page · OneClaimToRuleThemAll</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/vendor/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/notfound.js"></script>
+</head>
+<body>
+  <!-- @include partials/icons.html -->
+  <main class="landing">
+    <div class="landing-card nf">
+      <a class="brand" href="/">
+        <svg class="icon"><use href="#i-shield"/></svg>
+        <span>OneClaim<b>ToRule</b>ThemAll</span>
+      </a>
+
+      <div class="stack">
+        <span class="eyebrow nf-eyebrow">Error 404 · MSIS404</span>
+        <h1>No claim rule issued this page</h1>
+        <p class="lead">AD FS ran every rule it had for this address. None of them issued a page,
+          so you got nothing. Not even a little claim.</p>
+        <div class="row row-wrap">
+          <a class="btn btn-primary btn-lg" href="/"><svg class="icon"><use href="#i-arrow"/></svg> Back to the start page</a>
+        </div>
+      </div>
+
+      <section class="card stack nf-play" id="nf-trace-card" aria-labelledby="nf-trace-title">
+        <div class="card-head">
+          <h2 class="card-title" id="nf-trace-title"><svg class="icon"><use href="#i-layers"/></svg> Claims pipeline trace</h2>
+          <span class="spacer"></span>
+          <button id="nf-replay" class="btn" type="button"><svg class="icon"><use href="#i-zap"/></svg> Run it again</button>
+        </div>
+        <ol class="nf-trace" id="nf-trace">
+          <li class="nf-step ok">
+            <span class="pipe-num">1</span>
+            <span class="nf-step-text"><strong>Claims to accept</strong>
+              <span>Incoming claim <code>urn:oneclaim:path</code> = <code class="nf-path" data-path>this address</code></span></span>
+            <span class="badge accent"><svg class="icon icon-sm"><use href="#i-check"/></svg> Accepted</span>
+          </li>
+          <li class="nf-step ok">
+            <span class="pipe-num">2</span>
+            <span class="nf-step-text"><strong>Who gets access</strong>
+              <span>Permit everyone, the usual setup. Getting in was never the problem.</span></span>
+            <span class="badge accent"><svg class="icon icon-sm"><use href="#i-check"/></svg> Permitted</span>
+          </li>
+          <li class="nf-step fail">
+            <span class="pipe-num">3</span>
+            <span class="nf-step-text"><strong>Claims to send</strong>
+              <span>Look up the path in the attribute store “Pages”</span>
+              <code class="nf-query">c:[Type == "urn:oneclaim:path"]
+ =&gt; issue(store = "Pages", types = ("urn:oneclaim:page"), query = ";page;{0}", param = c.Value);</code></span>
+            <span class="badge error"><svg class="icon icon-sm"><use href="#i-x"/></svg> 0 rows</span>
+          </li>
+        </ol>
+        <p class="issue error nf-result" role="status" aria-live="polite">
+          <svg class="icon"><use href="#i-error"/></svg><span id="nf-result-text">0 claims issued. The relying party received no page.</span>
+        </p>
+      </section>
+
+      <section class="card stack" aria-labelledby="nf-fix-title">
+        <div class="stack-sm">
+          <h2 class="card-title" id="nf-fix-title"><svg class="icon"><use href="#i-rules"/></svg> Fix it with a claim rule</h2>
+          <p class="muted small">Pick the rule you would add. No PowerShell required, no trust harmed.</p>
+        </div>
+        <div class="nf-fixes" role="group" aria-label="Rules to try">
+          <button class="quick nf-fix" type="button" data-fix="permit" aria-pressed="false">
+            <span class="rule-kind permit"><svg class="icon"><use href="#i-permit"/></svg></span>
+            <span><strong>Permit everyone, harder</strong><small>Surely access is the problem</small></span>
+          </button>
+          <button class="quick nf-fix" type="button" data-fix="deny" aria-pressed="false">
+            <span class="rule-kind deny"><svg class="icon"><use href="#i-deny"/></svg></span>
+            <span><strong>Deny everyone</strong><small>If nobody gets in, nobody gets a 404</small></span>
+          </button>
+          <button class="quick nf-fix" type="button" data-fix="raw" aria-pressed="false">
+            <span class="rule-kind raw"><svg class="icon"><use href="#i-code"/></svg></span>
+            <span><strong>Pass through everything</strong><small>Write it by hand, like the old days</small></span>
+          </button>
+          <button class="quick nf-fix" type="button" data-fix="home" aria-pressed="false">
+            <span class="rule-kind claim"><svg class="icon"><use href="#i-tag"/></svg></span>
+            <span><strong>Send lost visitors home</strong><small>Issue a page claim when there is none</small></span>
+          </button>
+        </div>
+        <div class="nf-outcome stack" id="nf-outcome" hidden>
+          <pre class="code compact" id="nf-rule"></pre>
+          <div class="row row-wrap nf-verdict">
+            <span class="badge" id="nf-badge"></span>
+            <span id="nf-message"></span>
+          </div>
+          <div id="nf-follow" hidden>
+            <a class="btn btn-primary" href="/"><svg class="icon"><use href="#i-arrow"/></svg> Follow the claim home</a>
+          </div>
+        </div>
+        <p class="sr-only" id="nf-announce" aria-live="polite"></p>
+      </section>
+
+      <section class="nf-details" aria-labelledby="nf-details-title">
+        <h2 id="nf-details-title" class="nf-details-title">An error occurred.</h2>
+        <p>An error occurred. Contact your administrator for more information.</p>
+        <dl class="nf-dl mono">
+          <dt>Activity ID:</dt><dd id="nf-activity">00000000-0000-0000-0000-000000000000</dd>
+          <dt>Relying party:</dt><dd>OneClaimToRuleThemAll</dd>
+          <dt>Error time:</dt><dd id="nf-time">just now</dd>
+          <dt>Cookie:</dt><dd>enabled, but there are no cookies here</dd>
+        </dl>
+        <div class="row row-wrap">
+          <button id="nf-admin" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="nf-admin-msg">
+            <svg class="icon"><use href="#i-user"/></svg> Contact your administrator</button>
+          <p id="nf-admin-msg" class="small" hidden>Your administrator has been notified. Your administrator is you. It was always you.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

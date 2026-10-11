@@ -1,0 +1,51 @@
+<div class="stack">
+  <template x-if="rule.conditions.length">
+    <span class="field-label">Conditions <span class="muted">(all must match)</span></span>
+  </template>
+  <template x-for="cond in rule.conditions" :key="cond.id">
+    <div class="cond-block">
+      <template x-if="!isFirstCondition(rule, cond)"><span class="and">AND</span></template>
+      <div class="cond">
+        <input class="input mono" :id="'cond-' + cond.id" x-model="cond.type" list="claim-types"
+          placeholder="Claim type" aria-label="Claim type" spellcheck="false" autocomplete="off">
+        <select class="select" x-model="cond.op" aria-label="Operator">
+          <option value="equals">has value</option>
+          <option value="equalsIgnoreCase">has value (ignore case)</option>
+          <option value="matches">has value matching regex</option>
+          <option value="notEquals">does not have value</option>
+          <option value="notMatches">has no value matching regex</option>
+          <option value="exists">exists</option>
+          <option value="notExists">does not exist</option>
+        </select>
+        <input class="input mono" :id="'condval-' + cond.id" x-model="cond.value" x-show="opNeedsValue(cond)"
+          :placeholder="valuePlaceholder(cond)" aria-label="Value" spellcheck="false" autocomplete="off">
+        <span x-show="!opNeedsValue(cond)"></span>
+        <button class="btn btn-ghost btn-icon" type="button" @click="removeCondition(rule, cond)" aria-label="Remove condition">
+          <svg class="icon"><use href="#i-x"/></svg>
+        </button>
+        <div class="cond-issuer">
+          <span class="hint" x-text="conditionHint(cond)"></span>
+          <template x-if="showIssuer(cond)">
+            <label class="row"><span class="hint">Issuer</span>
+              <input class="input mono" :id="'condiss-' + cond.id" x-model="cond.issuer" placeholder="any issuer" spellcheck="false" autocomplete="off">
+            </label>
+          </template>
+          <template x-if="!showIssuer(cond)">
+            <button class="btn btn-ghost" type="button" @click="addIssuer(cond)">+ Issuer check</button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+  <label class="field add-cond"><span>Add a condition</span>
+    <select class="select" @change="addConditionFromSelect(rule, $event)">
+      <option value="">Choose…</option>
+      <option value="memberOf">Member of AD group</option>
+      <option value="notMemberOf">Not member of AD group</option>
+      <option value="insideCorp">Inside corporate network</option>
+      <option value="outsideCorp">Outside corporate network</option>
+      <option value="mfa">Signed in with MFA</option>
+      <option value="custom">Custom claim condition</option>
+    </select>
+  </label>
+</div>

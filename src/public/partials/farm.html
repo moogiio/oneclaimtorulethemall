@@ -1,0 +1,156 @@
+<dialog x-ref="farmDialog" class="dialog-farm" aria-labelledby="farm-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="farm-title">Import from AD FS</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeFarm()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <template x-if="farm.compare">
+      <div class="stack">
+        <div class="verdict" :class="{ ok: compareAllSame() }">
+          <strong x-text="compareSummary()"></strong>
+          <span>Compared with the file, nothing was changed. Rules count as the same when only blank lines, or spaces at the start
+            or end of a line, differ: the way the export script compares them.</span>
+        </div>
+        <ul class="pick-list">
+          <template x-for="row in farm.compare.rows" :key="row.id">
+            <li class="compare-row" :class="row.state">
+              <button type="button" class="overview-name" @click="openFromCompare(row)">
+                <strong x-text="row.name"></strong><small x-text="compareLabel(row)"></small>
+              </button>
+              <template x-for="(line, n) in row.details" :key="n"><span class="hint" x-text="line"></span></template>
+            </li>
+          </template>
+        </ul>
+        <template x-if="farm.compare.onlyInAdfs.length">
+          <p class="hint" x-text="'Only in AD FS, not in this workspace: ' + farm.compare.onlyInAdfs.join(', ')"></p>
+        </template>
+        <div class="row row-wrap">
+          <div class="spacer"></div>
+          <button class="btn" type="button" @click="closeCompare()">Back</button>
+          <button class="btn btn-primary" type="button" @click="closeFarm()">Done</button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="!farm.done && !farm.compare">
+      <div class="stack-lg">
+        <section class="stack" aria-labelledby="farm-1">
+          <h3 id="farm-1"><span class="pipe-num">1</span> Your AD FS admin runs this script</h3>
+          <p class="hint">In PowerShell on an AD FS server. It only reads, nothing in AD FS changes. It saves
+            <code x-text="farmFileName()"></code> on their desktop with the claim rules of every application and identity
+            provider. Ask them to send you that file.</p>
+          <div class="row row-wrap">
+            <button class="btn btn-primary" type="button" @click="copyFarmScript()">
+              <svg class="icon" x-show="farm.copied !== 'copied'"><use href="#i-copy"/></svg>
+              <svg class="icon" x-show="farm.copied === 'copied'"><use href="#i-check"/></svg>
+              <span x-text="farmCopyLabel()"></span>
+            </button>
+            <span class="small copy-error" role="status" aria-live="polite" x-text="farm.copied && farm.copied !== 'copied' ? farm.copied : ''"></span>
+          </div>
+          <details class="script-details">
+            <summary>Show the script</summary>
+            <pre tabindex="0" class="code export-code" x-text="farmScriptText()" aria-label="PowerShell script"></pre>
+          </details>
+        </section>
+
+        <section class="stack" aria-labelledby="farm-2">
+          <h3 id="farm-2"><span class="pipe-num">2</span> Open the file you got</h3>
+          <div class="row row-wrap">
+            <label class="btn">
+              <svg class="icon"><use href="#i-upload"/></svg> Choose file
+              <input type="file" accept=".json,application/json,text/plain" class="sr-only" @change="farmFile($event)">
+            </label>
+            <span class="hint" x-text="farm.fileName"></span>
+          </div>
+          <details class="script-details">
+            <summary>Or paste its content</summary>
+            <div class="stack">
+              <textarea class="textarea mono" x-model="farm.text" rows="6" spellcheck="false" aria-label="Content of the file"></textarea>
+              <div><button class="btn" type="button" @click="readFarm()">Read</button></div>
+            </div>
+          </details>
+          <template x-if="farm.error">
+            <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg><span x-text="farm.error"></span></p>
+          </template>
+        </section>
+
+        <template x-if="farm.parsed">
+          <section class="stack" aria-labelledby="farm-3">
+            <h3 id="farm-3"><span class="pipe-num">3</span> Pick what to import</h3>
+            <template x-if="!farmTrusts().length">
+              <div class="empty">The file has no trusts.</div>
+            </template>
+            <template x-if="farmTrusts().length">
+              <div class="stack-sm">
+                <div class="row row-wrap">
+                  <button class="btn btn-ghost" type="button" @click="pickAllFarm(true)">Select all</button>
+                  <button class="btn btn-ghost" type="button" @click="pickAllFarm(false)">Select none</button>
+                </div>
+                <ul class="pick-list">
+                  <template x-for="t in farmTrusts()" :key="t.key">
+                    <li>
+                      <label class="pick">
+                        <input type="checkbox" :checked="isFarmPicked(t)" @change="toggleFarm(t, $event)">
+                        <span class="pick-text">
+                          <strong x-text="t.name"></strong>
+                          <small x-text="farmTrustNote(t)"></small>
+                        </span>
+                      </label>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+            </template>
+            <template x-if="farm.skipped.length">
+              <p class="hint" x-text="'Skipped: ' + farm.skipped.join('; ')"></p>
+            </template>
+            <label class="check">
+              <input type="checkbox" x-model="farm.groupNames">
+              <span>Show AD groups by name (DOMAIN\Group) where the script found them. The export turns them back into SIDs.</span>
+            </label>
+            <template x-if="farmRoom() < 0">
+              <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg>
+                <span x-text="farmRoomError()"></span></p>
+            </template>
+            <p class="hint">Rules used by several trusts become one linked rule in the rule library. Rules the app cannot edit
+              are kept word for word as custom rules. You can undo the import.</p>
+          </section>
+        </template>
+
+        <div class="row row-wrap">
+          <div class="spacer"></div>
+          <button class="btn" type="button" @click="closeFarm()">Cancel</button>
+          <button class="btn" type="button" @click="compareWithFarm()" :disabled="!farm.parsed"
+            title="See what differs between AD FS and this workspace, without importing">Compare with this workspace</button>
+          <button class="btn btn-primary" type="button" @click="runFarmImport()" :disabled="!farmPickedKeys().length || farmRoom() < 0"
+            x-text="farmImportLabel()"></button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="farm.done">
+      <div class="stack">
+        <div class="verdict ok"><strong>Imported</strong><span x-text="farmDoneText()"></span></div>
+        <template x-if="farm.done.notes.length">
+          <ul class="issues">
+            <template x-for="(n, i) in farm.done.notes" :key="i">
+              <li class="issue info"><svg class="icon"><use href="#i-info"/></svg><span x-text="n"></span></li>
+            </template>
+          </ul>
+        </template>
+        <div class="row row-wrap">
+          <div class="spacer"></div>
+          <button class="btn" type="button" @click="closeFarm()">Close</button>
+          <button class="btn" type="button" @click="farmShowOverview()">Show the overview</button>
+          <template x-if="farm.firstId">
+            <button class="btn btn-primary" type="button" @click="openFarmFirst()" x-text="farmFirstLabel()"></button>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+</dialog>

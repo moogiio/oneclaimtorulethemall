@@ -1,0 +1,78 @@
+<div class="stack claim-fields">
+  <label class="field"><span>Claim type (required: the name the application expects)</span>
+    <input :id="'f-type-' + rule.id" class="input mono" x-model="rule.type" list="claim-types" spellcheck="false" autocomplete="off"
+      :aria-invalid="rule.type ? 'false' : 'true'" placeholder="Pick from the list, or type the name from the app's setup guide">
+    <span class="hint" :class="{ invalid: !rule.type }"
+      x-text="rule.type ? typeLabel(rule.type) : 'Required. Pick a well-known type like E-Mail Address, or type the attribute name the application’s setup guide gives, like email or User.Email'"></span>
+  </label>
+
+  <div class="field">
+    <span>Where the value comes from</span>
+    <div class="seg" role="group" aria-label="Where the value comes from">
+      <template x-for="src in catalog.SOURCES" :key="src.key">
+        <button type="button" :class="{ on: isSource(rule, src.key) }" :aria-pressed="isSource(rule, src.key) ? 'true' : 'false'"
+          @click="setSource(rule, src.key)" x-text="src.label"></button>
+      </template>
+    </div>
+  </div>
+
+  <template x-if="isSource(rule, 'ldap')">
+    <div class="grid-2">
+      <label class="field"><span>LDAP attribute</span>
+        <input :id="'f-attribute-' + rule.id" class="input mono" x-model="rule.attribute" list="ad-attributes" placeholder="mail"
+          spellcheck="false" autocomplete="off" :aria-invalid="rule.attribute ? 'false' : 'true'">
+        <span class="hint" x-text="attributeHint(rule.attribute)"></span>
+      </label>
+      <label class="field"><span>Attribute store</span>
+        <input :id="'f-store-' + rule.id" class="input" x-model="rule.store" placeholder="Active Directory" autocomplete="off">
+      </label>
+    </div>
+  </template>
+
+  <template x-if="isSource(rule, 'incoming')">
+    <div class="stack">
+      <label class="field"><span>Incoming claim type</span>
+        <input :id="'f-inputType-' + rule.id" class="input mono" x-model="rule.inputType" list="claim-types" spellcheck="false"
+          autocomplete="off" :aria-invalid="rule.inputType ? 'false' : 'true'">
+        <span class="hint" x-text="rule.inputType ? typeLabel(rule.inputType) : 'The claim to pass through or transform'"></span>
+      </label>
+      <div class="grid-2">
+        <label class="field"><span>Only values matching (regex, optional)</span>
+          <input :id="'f-valueFilter-' + rule.id" class="input mono" x-model="rule.valueFilter" placeholder="^.+@contoso\.com$" spellcheck="false">
+        </label>
+        <label class="field"><span>Only from issuer (optional)</span>
+          <input :id="'f-inputIssuer-' + rule.id" class="input mono" x-model="rule.inputIssuer" placeholder="AD AUTHORITY" spellcheck="false">
+        </label>
+      </div>
+      <div class="grid-2">
+        <label class="field"><span>Rewrite value: regex (optional)</span>
+          <input :id="'f-rewritePattern-' + rule.id" class="input mono" x-model="rule.rewritePattern" placeholder="^(?&lt;user&gt;[^@]+)@.*$" spellcheck="false">
+        </label>
+        <label class="field"><span>Rewrite value: replacement</span>
+          <input :id="'f-rewriteReplacement-' + rule.id" class="input mono" x-model="rule.rewriteReplacement" placeholder="${user}" spellcheck="false">
+        </label>
+      </div>
+    </div>
+  </template>
+
+  <template x-if="isSource(rule, 'static')">
+    <label class="field"><span>Value to send</span>
+      <input :id="'f-value-' + rule.id" class="input" x-model="rule.value" autocomplete="off" :aria-invalid="rule.value ? 'false' : 'true'"
+        placeholder="e.g. Admin">
+    </label>
+  </template>
+
+  <template x-if="isNameId(rule) && !isSource(rule, 'ldap')">
+    <label class="field"><span>NameID format</span>
+      <select :id="'f-nameIdFormat-' + rule.id" class="select" @change="setNameIdFormat(rule, $event)">
+        <option value="" :selected="isNameIdFormat(rule, '')">No format</option>
+        <template x-for="f in catalog.NAMEID_FORMATS" :key="f.uri">
+          <option :value="f.uri" :selected="isNameIdFormat(rule, f.uri)" x-text="f.label"></option>
+        </template>
+      </select>
+    </label>
+  </template>
+  <template x-if="isNameId(rule) && isSource(rule, 'ldap')">
+    <p class="hint">AD attribute lookups cannot set a NameID format. Use "Incoming claim" to transform a claim sent by an earlier rule instead.</p>
+  </template>
+</div>

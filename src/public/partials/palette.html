@@ -1,0 +1,81 @@
+<aside class="palette" aria-label="Add rules">
+  <div class="card stack">
+    <h2 class="card-title"><svg class="icon"><use href="#i-zap"/></svg> Quick start</h2>
+    <p class="hint">Common setups in one click. Claims that are the same everywhere are added to your rule library and linked.</p>
+    <div class="quick-list">
+      <template x-for="item in quickStarts()" :key="item.key">
+        <button type="button" class="quick" @click="applyQuickStart(item)">
+          <svg class="icon icon-sm"><use href="#i-plus"/></svg>
+          <span><strong x-text="item.label"></strong><small x-text="item.hint"></small></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <template x-if="showTemplates()">
+    <div class="card stack">
+      <h2 class="card-title"><svg class="icon"><use href="#i-wand"/></svg> Templates for well-known apps</h2>
+      <p class="hint">Everything an app's own setup guide asks AD FS to send, in one go.</p>
+      <div class="chips">
+        <template x-for="t in appTemplates()" :key="t.key">
+          <button type="button" class="chip" @click="openTemplate(t)" :title="t.blurb" x-text="t.name"></button>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <div class="card stack">
+    <h2 class="card-title"><svg class="icon"><use href="#i-rules"/></svg> From your rule library</h2>
+    <p class="hint">Linked rules: change them in the rule library and every application using them updates.</p>
+    <template x-if="libraryChoices().length">
+      <div class="chips">
+        <template x-for="lib in libraryChoices()" :key="lib.id">
+          <button type="button" class="chip" :class="{ used: linkedInSet(lib) }" @click="addLinkedRule(lib)" :title="ruleSubtitle(lib)">
+            <svg class="icon icon-sm"><use href="#i-link"/></svg>
+            <span x-text="ruleTitle(lib)"></span>
+          </button>
+        </template>
+      </div>
+    </template>
+    <template x-if="!libraryChoices().length && !libraryOthers().length">
+      <p class="hint">Your rule library is empty. Use “Save to rule library” on a rule here, or create one in the rule library.</p>
+    </template>
+    <template x-if="!libraryChoices().length && libraryOthers().length">
+      <p class="hint">None of your library rules fit this step.</p>
+    </template>
+    <template x-if="libraryOthers().length">
+      <div class="stack-sm">
+        <span class="field-label">For other steps</span>
+        <div class="chips">
+          <template x-for="lib in libraryOthers()" :key="lib.id">
+            <button type="button" class="chip chip-other" @click="addToItsStep(lib)" :title="otherStepTitle(lib)"
+              :aria-label="ruleTitle(lib) + '. ' + otherStepTitle(lib)">
+              <svg class="icon icon-sm"><use href="#i-arrow"/></svg>
+              <span x-text="ruleTitle(lib)"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+    <button class="btn btn-ghost" type="button" @click="openRuleLibrary()">
+      <svg class="icon"><use href="#i-rules"/></svg> Open rule library
+    </button>
+  </div>
+
+  <div class="card stack">
+    <h2 class="card-title"><svg class="icon"><use href="#i-code"/></svg> Blank rule</h2>
+    <p class="hint">A one-off rule for this step only. Use “Save to rule library” on it later to reuse it.</p>
+    <div class="row row-wrap">
+      <template x-if="canAdd('claim')">
+        <button class="btn" type="button" @click="addBlankClaim()"><svg class="icon"><use href="#i-tag"/></svg> Send a claim</button>
+      </template>
+      <template x-if="canAdd('permit')">
+        <button class="btn" type="button" @click="addPermit()"><svg class="icon"><use href="#i-permit"/></svg> Permit</button>
+      </template>
+      <template x-if="canAdd('deny')">
+        <button class="btn" type="button" @click="addDeny()"><svg class="icon"><use href="#i-deny"/></svg> Deny</button>
+      </template>
+      <button class="btn" type="button" @click="addRaw()"><svg class="icon"><use href="#i-code"/></svg> Custom rule</button>
+    </div>
+  </div>
+</aside>

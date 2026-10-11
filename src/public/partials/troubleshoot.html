@@ -1,0 +1,88 @@
+<dialog x-ref="troubleDialog" class="dialog-trouble" aria-labelledby="trouble-title">
+  <div class="dialog-body stack">
+    <div class="card-head">
+      <h2 id="trouble-title">Sign-in fails? Find out why</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeTroubleshoot()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <p class="muted">Paste the error AD FS gives. It is in two places:</p>
+    <ul class="trouble-where">
+      <li><strong>The error page in the browser.</strong> Copy all of it, the Activity ID and Error details lines included.</li>
+      <li><strong>Event Viewer on the AD FS server.</strong> Applications and Services Logs, AD FS, Admin: open the error (often event 364)
+        and copy its text.</li>
+    </ul>
+    <label class="field"><span>The error</span>
+      <textarea id="trouble-text" class="textarea mono" x-model="trouble.text" rows="7" spellcheck="false"
+        placeholder="Error details: MSIS7070: The SAML request contained a NameIDPolicy that was not satisfied by the issued token. ..."></textarea>
+    </label>
+    <div><button class="btn btn-primary" type="button" @click="runTroubleshoot()">Explain the error</button></div>
+
+    <template x-if="trouble.result">
+      <div id="trouble-results" class="stack" tabindex="-1" aria-live="polite">
+        <template x-if="!trouble.result.cards.length">
+          <div class="notice"><svg class="icon"><use href="#i-info"/></svg><span x-text="troubleNothingText()"></span></div>
+        </template>
+        <template x-if="trouble.result.cards.length && trouble.result.codes.length">
+          <div class="notice"><svg class="icon"><use href="#i-info"/></svg><span x-text="troubleOtherCodesText()"></span></div>
+        </template>
+        <template x-if="trouble.error">
+          <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg><span x-text="trouble.error"></span></p>
+        </template>
+        <template x-for="item in trouble.result.cards" :key="item.id">
+          <section class="trouble-card stack-sm" :aria-labelledby="'trouble-' + item.id">
+            <div>
+              <h3 :id="'trouble-' + item.id" x-text="item.title"></h3>
+              <span class="trouble-codes" x-text="item.codes"></span>
+            </div>
+            <p x-text="item.cause"></p>
+            <template x-if="item.facts.length">
+              <dl class="meta-facts">
+                <template x-for="fact in item.facts" :key="fact.label">
+                  <div><dt x-text="fact.label"></dt><dd class="mono" x-text="fact.value"></dd></div>
+                </template>
+              </dl>
+            </template>
+            <template x-if="item.profileName">
+              <p class="trouble-about">About <strong x-text="item.profileName"></strong> in this workspace.</p>
+            </template>
+            <template x-if="item.notes.length">
+              <ul class="trouble-notes"><template x-for="(note, n) in item.notes" :key="n"><li x-text="note"></li></template></ul>
+            </template>
+            <h4>What to do</h4>
+            <ol class="manual-steps"><template x-for="(step, n) in item.steps" :key="n"><li x-text="step"></li></template></ol>
+            <div class="row row-wrap">
+              <template x-if="item.fix && item.profileId">
+                <button class="btn btn-primary" type="button" @click="troubleFix(item)" x-text="troubleFixLabel(item)"></button>
+              </template>
+              <template x-if="item.where">
+                <button class="btn" type="button" @click="troubleOpen(item)" x-text="troubleOpenLabel(item)"></button>
+              </template>
+              <template x-if="item.area === 'access' && item.profileId">
+                <button class="btn" type="button" @click="troubleTry(item)">Try it with a test user</button>
+              </template>
+            </div>
+            <template x-if="troubleNotHere(item)">
+              <p class="hint">No application or identity provider in this workspace matches the name or identifier in the error.</p>
+            </template>
+            <p class="hint trouble-sources"><span x-text="item.sure"></span>
+              <template x-for="source in item.sources" :key="source.url">
+                <a :href="source.url" target="_blank" rel="noopener noreferrer" x-text="source.host"></a>
+              </template>
+            </p>
+          </section>
+        </template>
+      </div>
+    </template>
+
+    <details class="script-details">
+      <summary>The errors this knows</summary>
+      <ul class="trouble-known">
+        <template x-for="p in troubleKnown()" :key="p.id">
+          <li><span x-text="p.title"></span> <span class="trouble-codes" x-text="p.codes"></span></li>
+        </template>
+      </ul>
+    </details>
+  </div>
+</dialog>

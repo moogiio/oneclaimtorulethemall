@@ -1,0 +1,52 @@
+<dialog x-ref="templateDialog" class="dialog-template" aria-labelledby="tpl-title">
+  <template x-if="tplMeta()">
+    <div class="dialog-body">
+      <div class="card-head">
+        <h2 id="tpl-title" x-text="'Set up ' + tplMeta().name"></h2>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-icon" type="button" @click="closeTemplate()" aria-label="Close">
+          <svg class="icon"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <p class="muted" x-text="tplMeta().blurb"></p>
+      <template x-if="tplInputs().length">
+        <div class="grid-2">
+          <template x-for="input in tplInputs()" :key="input.key">
+            <label class="field"><span x-text="input.label"></span>
+              <input class="input mono" :id="'tpl-' + input.key" x-model="tpl.values[input.key]" :placeholder="input.placeholder || ''"
+                :aria-invalid="tplInputError(input) ? 'true' : 'false'" spellcheck="false" autocomplete="off">
+              <span class="hint invalid" x-show="tplInputError(input)" x-text="tplInputError(input)"></span>
+            </label>
+          </template>
+        </div>
+      </template>
+      <div class="field"><span>What it adds to “Claims to send”</span>
+        <ul class="tpl-list">
+          <template x-for="(title, n) in tplRuleTitles()" :key="n"><li x-text="title"></li></template>
+        </ul>
+      </div>
+      <div class="field"><span>For the AD FS admin and the app's settings (also saved in the description)</span>
+        <ul class="tpl-list">
+          <template x-for="(line, n) in tplMeta().trust" :key="n"><li x-text="line"></li></template>
+        </ul>
+      </div>
+      <template x-for="(line, n) in tplMeta().remarks" :key="n">
+        <p class="notice"><svg class="icon"><use href="#i-info"/></svg><span x-text="line"></span></p>
+      </template>
+      <div class="row row-wrap tpl-docs">
+        <span class="hint">Based on:</span>
+        <template x-for="doc in tplMeta().docs" :key="doc.url">
+          <a :href="doc.url" target="_blank" rel="noopener noreferrer" x-text="doc.label"></a>
+        </template>
+      </div>
+      <template x-if="tpl.error">
+        <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg><span x-text="tpl.error"></span></p>
+      </template>
+      <div class="row row-wrap">
+        <div class="spacer"></div>
+        <button class="btn" type="button" @click="closeTemplate()">Cancel</button>
+        <button class="btn btn-primary" type="button" @click="confirmTemplate()" :disabled="!tplReady()" x-text="tplButtonLabel()"></button>
+      </div>
+    </div>
+  </template>
+</dialog>

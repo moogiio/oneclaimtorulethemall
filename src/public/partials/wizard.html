@@ -1,0 +1,179 @@
+<dialog x-ref="wizardDialog" class="dialog-wizard" aria-labelledby="wiz-title" @close="forgetMetadataState()">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="wiz-title">Set up a new application</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeWizard()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <ol class="wiz-steps" aria-label="Steps">
+      <template x-for="(label, n) in wizSteps()" :key="n">
+        <li :class="wizStepState(n)" :aria-current="wizStepState(n) === 'on' ? 'step' : false">
+          <span class="pipe-num" x-text="n + 1"></span><span x-text="label"></span>
+        </li>
+      </template>
+    </ol>
+
+    <template x-if="wiz.step === 0">
+      <section class="stack" aria-labelledby="wiz-step-title">
+        <h3 id="wiz-step-title" tabindex="-1">Which application do you want to set up?</h3>
+        <div class="wiz-cards">
+          <template x-for="t in wizTemplates()" :key="t.key">
+            <button type="button" class="wiz-card" :class="{ on: isWizKind(t.key) }" :aria-pressed="isWizKind(t.key) ? 'true' : 'false'" @click="wizPick(t.key)">
+              <strong x-text="t.name"></strong><small x-text="t.blurb"></small>
+            </button>
+          </template>
+          <button type="button" class="wiz-card" :class="{ on: isWizKind('saml') }" :aria-pressed="isWizKind('saml') ? 'true' : 'false'" @click="wizPick('saml')">
+            <strong>Another SAML application</strong><small>Most cloud applications. Their setup guide talks about SAML 2.0</small>
+          </button>
+          <button type="button" class="wiz-card" :class="{ on: isWizKind('wsfed') }" :aria-pressed="isWizKind('wsfed') ? 'true' : 'false'" @click="wizPick('wsfed')">
+            <strong>Another WS-Federation application</strong><small>Often older Microsoft-based applications, like SharePoint</small>
+          </button>
+        </div>
+        <label class="field"><span>Name</span>
+          <input id="wiz-name" class="input" x-model="wiz.answers.name" maxlength="200" autocomplete="off" placeholder="e.g. Expenses">
+          <span class="hint">The name of the relying party trust in AD FS Management.</span>
+        </label>
+      </section>
+    </template>
+
+    <template x-if="wiz.step === 1">
+      <section class="stack" aria-labelledby="wiz-step-title">
+        <h3 id="wiz-step-title" tabindex="-1">Is the application already set up in AD FS?</h3>
+        <template x-for="t in [wizTrustCtx()]" :key="'wiz-trust'">
+          <!-- @include partials/trustfields.html -->
+        </template>
+      </section>
+    </template>
+
+    <template x-if="wiz.step === 2">
+      <section class="stack" aria-labelledby="wiz-step-title">
+        <h3 id="wiz-step-title" tabindex="-1">Who may sign in to it?</h3>
+        <div class="wiz-radios" role="radiogroup" aria-labelledby="wiz-step-title">
+          <template x-for="choice in wizAccessChoices()" :key="choice.key">
+            <label class="pick">
+              <input type="radio" name="wiz-access" :value="choice.key" x-model="wiz.answers.access">
+              <span class="pick-text"><strong x-text="choice.label"></strong>
+                <small x-text="choice.policy ? 'Access control policy: ' + choice.policy : 'Whatever the trust has now stays'"></small></span>
+            </label>
+          </template>
+        </div>
+        <template x-if="wizNeedsGroups()">
+          <label class="field"><span>AD groups, one per line</span>
+            <textarea class="textarea mono policy-groups" :value="wizGroupsText()" @change="setWizGroups($event)" rows="3" spellcheck="false"
+              placeholder="CONTOSO\Expenses users"></textarea>
+            <span class="hint invalid" role="status" x-show="wiz.groupsNote" x-text="wiz.groupsNote"></span>
+          </label>
+        </template>
+      </section>
+    </template>
+
+    <template x-if="wiz.step === 3">
+      <section class="stack" aria-labelledby="wiz-step-title">
+        <h3 id="wiz-step-title" tabindex="-1">What does the application need to know about the user?</h3>
+        <template x-if="wizTemplate()">
+          <div class="stack">
+            <p class="hint" x-text="'The ' + wizTemplate().name + ' template sends what its setup guide asks for.'"></p>
+            <template x-if="wizTemplate().inputs.length">
+              <div class="grid-2">
+                <template x-for="input in wizTemplate().inputs" :key="input.key">
+                  <label class="field"><span x-text="input.label"></span>
+                    <input class="input mono" x-model="wiz.answers.templateValues[input.key]" :placeholder="input.placeholder || ''" spellcheck="false" autocomplete="off">
+                  </label>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template x-if="!wizTemplate()">
+          <div class="stack">
+            <div class="field">
+              <span id="wiz-nameid">How the application recognizes the user (Name ID)</span>
+              <div class="wiz-radios" role="radiogroup" aria-labelledby="wiz-nameid">
+                <template x-for="n in wizNameIds()" :key="n.key">
+                  <label class="pick">
+                    <input type="radio" name="wiz-nameid" :value="n.key" x-model="wiz.answers.nameId">
+                    <span class="pick-text"><strong x-text="n.label"></strong><small x-text="n.hint"></small></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+            <div class="field">
+              <span>Also send</span>
+              <div class="wiz-checks">
+                <template x-for="c in wizClaimChoices()" :key="c.key">
+                  <label class="check"><input type="checkbox" :checked="isWizClaim(c.key)" @change="toggleWizClaim(c.key, $event)"> <span x-text="c.label"></span></label>
+                </template>
+              </div>
+            </div>
+            <template x-if="wizRequested().length">
+              <div class="field">
+                <span>Also asked for in the metadata file</span>
+                <div class="wiz-checks">
+                  <template x-for="(claim, n) in wizRequested()" :key="claim.name">
+                    <label class="check"><input type="checkbox" :checked="claim.on" @change="toggleWizRequested(n, $event)"> <span x-text="wizRequestedText(claim)"></span></label>
+                  </template>
+                </div>
+                <span class="hint">Sent with the name the application asks for.</span>
+              </div>
+            </template>
+            <div class="field">
+              <span>Roles for AD groups (optional)</span>
+              <template x-for="(role, n) in wiz.answers.roles" :key="n">
+                <div class="try-row">
+                  <input class="input mono" x-model="role.group" aria-label="AD group" placeholder="CONTOSO\Expenses admins" maxlength="200" spellcheck="false" autocomplete="off">
+                  <input class="input" x-model="role.value" aria-label="Role" placeholder="Admin" maxlength="200" autocomplete="off">
+                  <button class="btn btn-ghost btn-icon" type="button" @click="removeWizRole(n)" aria-label="Remove role">
+                    <svg class="icon"><use href="#i-x"/></svg>
+                  </button>
+                </div>
+              </template>
+              <div><button class="btn btn-ghost" type="button" @click="addWizRole()">+ Role for an AD group</button></div>
+              <span class="hint">Members of the group get the role in the Role claim, for applications that give rights by role.</span>
+            </div>
+          </div>
+        </template>
+      </section>
+    </template>
+
+    <template x-if="wiz.step === 4">
+      <section class="stack" aria-labelledby="wiz-step-title">
+        <h3 id="wiz-step-title" tabindex="-1">Check and create</h3>
+        <dl class="wiz-summary">
+          <template x-for="item in wizSummary()" :key="item.title">
+            <div><dt x-text="item.title"></dt><dd x-text="item.text"></dd></div>
+          </template>
+        </dl>
+        <p class="hint">Nothing changes in AD FS yet. Afterwards, try a sign-in with a test user, then export the script for AD FS.
+          You can change everything later.</p>
+      </section>
+    </template>
+
+    <template x-if="wizShownErrors().length || wiz.error">
+      <ul class="issues" role="alert">
+        <template x-for="(message, n) in wizShownErrors()" :key="n">
+          <li class="issue error"><svg class="icon"><use href="#i-error"/></svg><span x-text="message"></span></li>
+        </template>
+        <template x-if="wiz.error">
+          <li class="issue error"><svg class="icon"><use href="#i-error"/></svg><span x-text="wiz.error"></span></li>
+        </template>
+      </ul>
+    </template>
+
+    <div class="row row-wrap">
+      <button class="btn btn-ghost" type="button" @click="closeWizard()">Cancel</button>
+      <template x-if="wiz.step === 0">
+        <button class="btn btn-ghost" type="button" @click="wizStartEmpty()">Skip the questions, start empty</button>
+      </template>
+      <div class="spacer"></div>
+      <button class="btn" type="button" @click="wizBack()" :disabled="wiz.step === 0">Back</button>
+      <template x-if="!isWizLast()">
+        <button class="btn btn-primary" type="button" @click="wizNext()">Next</button>
+      </template>
+      <template x-if="isWizLast()">
+        <button class="btn btn-primary" type="button" @click="wizCreate()"><svg class="icon"><use href="#i-check"/></svg> Create application</button>
+      </template>
+    </div>
+  </div>
+</dialog>

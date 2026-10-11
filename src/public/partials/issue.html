@@ -1,0 +1,14 @@
+<li class="issue" :class="item.severity">
+  <svg class="icon" x-show="item.severity === 'error'"><use href="#i-error"/></svg>
+  <svg class="icon" x-show="item.severity === 'warning'"><use href="#i-alert"/></svg>
+  <svg class="icon" x-show="item.severity === 'info'"><use href="#i-info"/></svg>
+  <span class="issue-text">
+    <span class="sr-only" x-text="item.severity + ': '"></span><span x-text="item.message"></span>
+    <template x-if="canAutoFix(item)">
+      <button type="button" class="issue-fix" @click="autoFix(item)" x-text="autoFixLabel(item)"></button>
+    </template>
+    <template x-if="canFix(item)">
+      <button type="button" @click="fixIssue(item)" x-text="fixLabel(item)"></button>
+    </template>
+  </span>
+</li>

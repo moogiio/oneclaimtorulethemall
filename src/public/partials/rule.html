@@ -1,0 +1,113 @@
+<article class="card rule" :class="{ disabled: !rule.enabled, linked: isLinked(rule), 'drop-before': isDropTarget(rule, 'before'), 'drop-after': isDropTarget(rule, 'after'), dragging: dragRuleId === rule.id }"
+  @dragover="dragOverRule(rule, $event)" @drop="dropRule(rule, $event)">
+  <div class="rule-head">
+    <span class="drag-handle" draggable="true" @dragstart="dragRule(rule, $event)" @dragend="dragEnd()" title="Drag to reorder"
+      aria-hidden="true"><svg class="icon icon-sm"><use href="#i-grip"/></svg></span>
+    <span class="rule-num" x-text="ruleNumber(rule)"></span>
+    <span class="rule-kind" :class="shownKind(rule)" aria-hidden="true">
+      <svg class="icon" x-show="shownKind(rule) === 'claim'"><use href="#i-tag"/></svg>
+      <svg class="icon" x-show="shownKind(rule) === 'permit'"><use href="#i-permit"/></svg>
+      <svg class="icon" x-show="shownKind(rule) === 'deny'"><use href="#i-deny"/></svg>
+      <svg class="icon" x-show="shownKind(rule) === 'raw'"><use href="#i-code"/></svg>
+    </span>
+    <div class="rule-title">
+      <strong>
+        <svg class="icon icon-sm link-mark" x-show="isLinked(rule)" aria-label="Linked from the rule library"><use href="#i-link"/></svg>
+        <span x-text="ruleTitle(rule)"></span>
+        <span class="badge" x-show="!isLinked(rule)" title="Only in this application. Use “Save to rule library” to reuse it elsewhere">One-off</span>
+      </strong>
+      <span x-text="ruleSubtitle(rule)"></span>
+    </div>
+    <label class="check" title="Inactive rules are left out of the export">
+      <input type="checkbox" x-model="rule.enabled"> <span>Active</span>
+    </label>
+    <button class="btn btn-ghost btn-icon" type="button" @click="moveRule(rule, -1)" :disabled="isFirst(rule)" aria-label="Move rule up">
+      <svg class="icon"><use href="#i-up"/></svg>
+    </button>
+    <button class="btn btn-ghost btn-icon" type="button" @click="moveRule(rule, 1)" :disabled="isLast(rule)" aria-label="Move rule down">
+      <svg class="icon"><use href="#i-down"/></svg>
+    </button>
+    <button class="btn btn-ghost btn-icon btn-danger" type="button" @click="removeRule(rule)" aria-label="Remove rule from this step">
+      <svg class="icon"><use href="#i-trash"/></svg>
+    </button>
+  </div>
+
+  <div class="rule-body">
+    <p class="plain"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-info"/></svg>
+      <span><span class="sr-only">In plain words: </span><span x-text="ruleExplanation(rule)"></span></span></p>
+    <template x-if="isLinked(rule)">
+      <div class="stack">
+        <template x-if="shownRule(rule) && shownRule(rule).conditions.length">
+          <ul class="cond-summary">
+            <template x-for="(cond, n) in shownRule(rule).conditions" :key="cond.id">
+              <li><span class="and" x-show="n > 0">AND </span><span x-text="conditionText(cond)"></span></li>
+            </template>
+          </ul>
+        </template>
+        <div class="row row-wrap">
+          <template x-if="shownRule(rule)">
+            <button class="btn" type="button" @click="editLinkedRule(rule)">
+              <svg class="icon"><use href="#i-rules"/></svg> Edit in rule library
+            </button>
+          </template>
+          <template x-if="shownRule(rule)">
+            <button class="btn btn-ghost" type="button" @click="detachRule(rule)" title="Make a copy that only belongs to this profile">
+              <svg class="icon"><use href="#i-unlink"/></svg> Detach
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="!isLinked(rule) && !ruleKindIs(rule, 'raw')">
+      <div class="stack">
+        <div class="rule-controls">
+          <label class="field"><span>Rule name (optional)</span>
+            <input class="input" x-model="rule.label" :placeholder="ruleTitle(rule)" maxlength="200" autocomplete="off">
+          </label>
+        </div>
+        <template x-if="ruleKindIs(rule, 'claim')">
+          <div class="settings">
+            <button type="button" class="settings-toggle" @click="toggleSettings(rule)" :aria-expanded="settingsOpen(rule) ? 'true' : 'false'">
+              <svg class="icon icon-sm" x-show="!settingsOpen(rule)"><use href="#i-down"/></svg>
+              <svg class="icon icon-sm" x-show="settingsOpen(rule)"><use href="#i-up"/></svg>
+              <span>Claim settings</span>
+              <span class="muted" x-text="typeLabel(rule.type) + ' · ' + claimSummary(rule)"></span>
+            </button>
+            <template x-if="settingsOpen(rule)">
+              <!-- @include partials/claimfields.html -->
+            </template>
+          </div>
+        </template>
+        <!-- @include partials/conditions.html -->
+      </div>
+    </template>
+
+    <template x-if="!isLinked(rule) && ruleKindIs(rule, 'raw')">
+      <div class="stack">
+        <label class="field"><span>Name (only shown here)</span>
+          <input class="input" x-model="rule.label" placeholder="Custom rule" maxlength="200" autocomplete="off">
+        </label>
+        <label class="field"><span>Rule text</span>
+          <textarea class="textarea mono" x-model="rule.text" spellcheck="false" rows="6"></textarea>
+        </label>
+      </div>
+    </template>
+
+    <template x-if="!isLinked(rule)">
+      <div class="row row-wrap">
+        <button class="btn btn-ghost" type="button" @click="saveToLibrary(rule)" title="Reuse this rule in other applications">
+          <svg class="icon"><use href="#i-rules"/></svg> Save to rule library
+        </button>
+      </div>
+    </template>
+
+    <template x-if="ruleIssues(rule).length">
+      <ul class="issues">
+        <template x-for="(item, n) in ruleIssues(rule)" :key="n">
+          <!-- @include partials/issue.html -->
+        </template>
+      </ul>
+    </template>
+  </div>
+</article>

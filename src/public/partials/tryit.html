@@ -1,0 +1,183 @@
+<dialog x-ref="tryDialog" class="dialog-try" aria-labelledby="try-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="try-title" x-text="tryTitle()"></h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeTry()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <template x-if="tryUser()">
+      <div class="try-grid">
+        <section class="stack try-user" aria-labelledby="try-user-title">
+          <div class="row row-wrap">
+            <h3 id="try-user-title" class="grow-1">Test user</h3>
+            <button class="btn btn-ghost" type="button" @click="addTestUser()"><svg class="icon"><use href="#i-plus"/></svg> New</button>
+          </div>
+          <div class="row">
+            <label class="sr-only" for="try-pick">Pick a test user</label>
+            <select id="try-pick" class="select" @change="pickTryUser($event)">
+              <template x-for="u in ws.testUsers" :key="u.id">
+                <option :value="u.id" :selected="u.id === tryState.userId" x-text="u.name || 'Unnamed'"></option>
+              </template>
+            </select>
+            <button class="btn btn-ghost btn-icon btn-danger" type="button" @click="removeTestUser()" aria-label="Delete this test user">
+              <svg class="icon"><use href="#i-trash"/></svg>
+            </button>
+          </div>
+          <template x-for="user in [tryUser()]" :key="user.id">
+            <div class="stack">
+              <label class="field"><span>Name (only shown here)</span>
+                <input id="try-name" class="input" x-model="user.name" maxlength="200" autocomplete="off">
+              </label>
+              <template x-if="tryIsApp() && tryIdps().length">
+                <div class="field">
+                  <span id="try-via">Signs in</span>
+                  <div class="seg" role="group" aria-labelledby="try-via">
+                    <button type="button" :class="{ on: !tryState.via }" :aria-pressed="!tryState.via ? 'true' : 'false'" @click="setTryVia('')">With an AD account</button>
+                    <template x-for="idp in tryIdps()" :key="idp.id">
+                      <button type="button" :class="{ on: tryState.via === idp.id }" :aria-pressed="tryState.via === idp.id ? 'true' : 'false'"
+                        @click="setTryVia(idp.id)" x-text="'Through ' + (idp.name || 'Untitled')"></button>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <template x-if="!tryViaPartner()">
+                <div class="stack">
+                  <label class="field"><span>Windows account</span>
+                    <input class="input mono" x-model="user.account" placeholder="CONTOSO\jdoe" maxlength="200" spellcheck="false" autocomplete="off">
+                  </label>
+                  <label class="field"><span>AD groups, one per line (DOMAIN\Group or SID)</span>
+                    <textarea class="textarea mono try-groups" :value="groupsText(user)" @change="setGroups(user, $event)" rows="4"
+                      spellcheck="false" placeholder="CONTOSO\Sales"></textarea>
+                    <span class="hint invalid" role="status" x-show="tryState.groupsNote" x-text="tryState.groupsNote"></span>
+                  </label>
+                  <div class="field">
+                    <span>AD attributes</span>
+                    <template x-for="(a, n) in user.attributes" :key="n">
+                      <div class="try-row">
+                        <input class="input mono" x-model="a.name" list="ad-attributes" aria-label="Attribute" placeholder="mail" maxlength="200"
+                          spellcheck="false" autocomplete="off">
+                        <input class="input" x-model="a.value" aria-label="Value" placeholder="Value" maxlength="2048" autocomplete="off">
+                        <button class="btn btn-ghost btn-icon" type="button" @click="removeTestAttribute(user, n)" aria-label="Remove attribute">
+                          <svg class="icon"><use href="#i-x"/></svg>
+                        </button>
+                      </div>
+                    </template>
+                    <div><button class="btn btn-ghost" type="button" @click="addTestAttribute(user)">+ Attribute</button></div>
+                  </div>
+                </div>
+              </template>
+
+              <div class="row row-wrap">
+                <label class="check"><input type="checkbox" x-model="user.insideCorp"> <span>Inside the corporate network</span></label>
+                <label class="check"><input type="checkbox" x-model="user.mfa"> <span>Signed in with MFA</span></label>
+              </div>
+
+              <div class="field">
+                <span x-text="tryViaPartner() ? 'Claims ' + (tryPartnerName() || 'the identity provider') + ' sends' : 'Other claims (optional)'"></span>
+                <template x-for="(c, n) in user.claims" :key="n">
+                  <div class="try-row try-claim">
+                    <input class="input mono" x-model="c.type" list="claim-types" aria-label="Claim type" placeholder="Claim type" maxlength="512"
+                      spellcheck="false" autocomplete="off">
+                    <input class="input" x-model="c.value" aria-label="Value" placeholder="Value" maxlength="2048" autocomplete="off">
+                    <input class="input mono" x-model="c.issuer" aria-label="Issuer" :placeholder="tryIssuerPlaceholder()" maxlength="512"
+                      spellcheck="false" autocomplete="off">
+                    <button class="btn btn-ghost btn-icon" type="button" @click="removeTestClaim(user, n)" aria-label="Remove claim">
+                      <svg class="icon"><use href="#i-x"/></svg>
+                    </button>
+                  </div>
+                </template>
+                <div><button class="btn btn-ghost" type="button" @click="addTestClaim(user)">+ Claim</button></div>
+              </div>
+              <p class="hint">Test users are saved in this workspace. They are made up and never sent to AD FS.</p>
+            </div>
+          </template>
+        </section>
+
+        <section class="stack try-result" aria-labelledby="try-result-title" aria-live="polite">
+          <h3 id="try-result-title" class="sr-only">Result</h3>
+          <template x-if="tryState.result">
+            <div class="stack">
+              <div class="verdict" :class="tryVerdict().kind">
+                <strong x-text="tryVerdict().title"></strong>
+                <span x-show="tryVerdict().text" x-text="tryVerdict().text"></span>
+              </div>
+              <template x-for="(gap, n) in tryState.result.gaps" :key="'gap' + n">
+                <p class="notice"><svg class="icon"><use href="#i-alert"/></svg><span x-text="gap"></span></p>
+              </template>
+              <template x-if="tryState.result.notSimulated">
+                <p class="notice"><svg class="icon"><use href="#i-alert"/></svg>
+                  <span x-text="tryState.result.notSimulated + ' rule(s) use features the app cannot simulate. They are treated as not matching, so the real result can differ.'"></span></p>
+              </template>
+              <template x-for="(step, s) in tryState.result.steps" :key="s">
+                <div class="try-step">
+                  <div class="try-step-head">
+                    <span class="pipe-num" x-text="s + 1"></span>
+                    <strong x-text="tryStepLabel(step)"></strong>
+                    <template x-if="step.mode === 'policy'"><span class="badge info">Access control policy</span></template>
+                  </div>
+                  <template x-if="step.note"><p class="hint" x-text="step.note"></p></template>
+                  <template x-if="step.decision && step.mode !== 'rules'"><p class="hint" x-text="step.decision.reason"></p></template>
+                  <template x-if="step.mode === 'rules' && !step.rules.length"><p class="hint">No rules in this step.</p></template>
+                  <ol class="try-rules">
+                    <template x-for="entry in step.rules" :key="entry.ruleId">
+                      <li class="try-rule" :class="entry.status">
+                        <div class="row row-wrap">
+                          <span class="rule-num" x-text="tryRuleNumber(step, entry)"></span>
+                          <span class="grow-1" x-text="tryRuleTitle(step, entry)"></span>
+                          <span class="badge" :class="tryStatus(entry).kind" x-text="tryStatus(entry).label"></span>
+                        </div>
+                        <template x-if="entry.conditions.length && entry.status !== 'inactive'">
+                          <ul class="try-conds">
+                            <template x-for="(cond, n) in entry.conditions" :key="n">
+                              <li :class="{ ok: cond.ok }">
+                                <svg class="icon icon-sm" x-show="cond.ok"><use href="#i-check"/></svg>
+                                <svg class="icon icon-sm" x-show="!cond.ok"><use href="#i-x"/></svg>
+                                <span class="sr-only" x-text="cond.ok ? 'met: ' : 'not met: '"></span><span x-text="cond.text"></span>
+                              </li>
+                            </template>
+                          </ul>
+                        </template>
+                        <template x-if="entry.message"><p class="hint" x-text="entry.message"></p></template>
+                        <template x-if="entry.issued.length">
+                          <ul class="try-claims">
+                            <template x-for="(c, n) in entry.issued" :key="n">
+                              <li><span class="claim-type" :title="c.type" x-text="claimLabel(c)"></span> <code x-text="c.value"></code></li>
+                            </template>
+                          </ul>
+                        </template>
+                      </li>
+                    </template>
+                  </ol>
+                </div>
+              </template>
+              <div class="try-token">
+                <h3 x-text="tryTokenTitle()"></h3>
+                <template x-if="tryState.result.token.length">
+                  <table class="claims-table">
+                    <thead><tr><th scope="col">Claim</th><th scope="col">Value</th></tr></thead>
+                    <tbody>
+                      <template x-for="(c, n) in tryState.result.token" :key="n">
+                        <tr>
+                          <td><span :title="c.type" x-text="claimLabel(c)"></span><small x-show="claimFormat(c)" x-text="claimFormat(c)"></small></td>
+                          <td><code x-text="c.value"></code></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </template>
+                <template x-if="!tryState.result.token.length">
+                  <p class="hint" x-text="tryState.result.access && tryState.result.access.granted === false ? 'No token: the user does not get in.' : 'No claims. The application would get an empty token.'"></p>
+                </template>
+              </div>
+              <p class="hint">A simulation of the rules in this app, close to how AD FS runs them. AD lookups use the test user's
+                attributes and groups, and the sign-in itself (Windows account, groups, MFA, network) is simplified.</p>
+            </div>
+          </template>
+        </section>
+      </div>
+    </template>
+  </div>
+</dialog>

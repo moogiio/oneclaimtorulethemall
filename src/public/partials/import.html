@@ -1,0 +1,53 @@
+<dialog x-ref="importDialog" aria-labelledby="import-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="import-title">Import rules</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeImport()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <p class="hint">Paste a rule file, for example the output of
+      <code>(Get-AdfsRelyingPartyTrust -Name "App").IssuanceTransformRules</code> or
+      <code>(Get-AdfsClaimsProviderTrust -Name "Partner").AcceptanceTransformRules</code>. Recognized rules become editable
+      and their claims are added to the library. Everything else is kept word for word as custom rules.</p>
+    <div class="grid-2">
+      <template x-if="importIsApp()">
+        <label class="field"><span>Import into</span>
+          <select class="select" x-model="importSet">
+            <option value="issuanceTransform">Claims to send (Issuance Transform Rules)</option>
+            <option value="issuanceAuthorization">Who gets access (Issuance Authorization Rules)</option>
+          </select>
+        </label>
+      </template>
+      <template x-if="!importIsApp()">
+        <div class="field"><span>Import into</span>
+          <p class="hint">Claims to accept (Acceptance Transform Rules)</p>
+        </div>
+      </template>
+      <div class="field">
+        <span id="import-mode">Mode</span>
+        <div class="seg" role="group" aria-labelledby="import-mode">
+          <button type="button" :class="{ on: importMode === 'append' }" :aria-pressed="importMode === 'append' ? 'true' : 'false'"
+            @click="importMode = 'append'">Append</button>
+          <button type="button" :class="{ on: importMode === 'replace' }" :aria-pressed="importMode === 'replace' ? 'true' : 'false'"
+            @click="importMode = 'replace'">Replace existing</button>
+        </div>
+      </div>
+    </div>
+    <label class="field"><span>Rules</span>
+      <textarea class="textarea mono" x-model="importText" rows="12" spellcheck="false"
+        placeholder='@RuleName = "E-mail"&#10;c:[Type == "...windowsaccountname", Issuer == "AD AUTHORITY"]&#10; => issue(store = "Active Directory", ...);'></textarea>
+    </label>
+    <div class="row row-wrap">
+      <label class="btn">
+        <svg class="icon"><use href="#i-upload"/></svg> Choose .txt file
+        <input type="file" accept=".txt,text/plain" class="sr-only" @change="importFile($event)">
+      </label>
+      <span class="hint" x-text="importFileName"></span>
+      <div class="spacer"></div>
+      <button class="btn" type="button" @click="closeImport()">Cancel</button>
+      <button class="btn btn-primary" type="button" @click="runImport()">Import</button>
+    </div>
+  </div>
+</dialog>

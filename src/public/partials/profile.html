@@ -1,0 +1,165 @@
+<div>
+  <template x-for="profile in [currentProfile()]" :key="profile.id">
+    <section aria-label="Profile">
+      <div class="page-head">
+        <div class="grow">
+          <span class="eyebrow">
+            <svg class="icon icon-sm" x-show="profile.type === 'app'"><use href="#i-app"/></svg>
+            <svg class="icon icon-sm" x-show="profile.type === 'idp'"><use href="#i-building"/></svg>
+            <span x-text="profileTypeMeta().label + ' · ' + profileTypeMeta().trust"></span>
+          </span>
+          <label class="sr-only" for="profile-name">Name</label>
+          <input id="profile-name" class="input input-title" x-model="profile.name" maxlength="200" autocomplete="off">
+          <label class="sr-only" for="profile-desc">Description</label>
+          <input id="profile-desc" class="input" x-model="profile.description" maxlength="2000" autocomplete="off"
+            placeholder="Description, e.g. what this trust is used for">
+        </div>
+        <div class="row row-wrap">
+          <button class="btn" type="button" @click="openImport()">
+            <svg class="icon"><use href="#i-upload"/></svg> Import
+          </button>
+          <button class="btn" type="button" @click="openTry()" title="Simulate a sign-in for a test user">
+            <svg class="icon"><use href="#i-play"/></svg> Try it
+          </button>
+          <button class="btn btn-primary" type="button" @click="openExport()">
+            <svg class="icon"><use href="#i-code"/></svg> Export
+          </button>
+          <button class="btn" type="button" @click="duplicateProfile()">
+            <svg class="icon"><use href="#i-files"/></svg> Duplicate
+          </button>
+          <button class="btn btn-ghost btn-danger" type="button" @click="askDelete('profile')">
+            <svg class="icon"><use href="#i-trash"/></svg> Delete
+          </button>
+        </div>
+      </div>
+
+      <details class="trust-panel">
+        <summary>
+          <svg class="icon icon-sm"><use href="#i-link"/></svg>
+          <span class="trust-label">Trust in AD FS:</span>
+          <span class="trust-summary" x-text="trustSummary(profile)"></span>
+          <template x-if="trustErrorCount(trustCtx())">
+            <span class="badge error" x-text="trustErrorCount(trustCtx()) + ' to fix'"></span>
+          </template>
+        </summary>
+        <template x-for="t in [trustCtx()]" :key="profile.id + '-trust'">
+          <!-- @include partials/trustfields.html -->
+        </template>
+      </details>
+
+      <div class="checklist-row">
+        <span class="checklist-title" x-text="checklistReady() ? 'Ready to export' : 'Before you export'"></span>
+        <ol class="checklist" aria-label="Setup checklist">
+          <template x-for="item in checklistItems()" :key="item.key">
+            <li :class="item.state">
+              <button type="button" @click="runChecklistItem(item)">
+                <svg class="icon icon-sm" x-show="item.state === 'ok'"><use href="#i-check"/></svg>
+                <svg class="icon icon-sm" x-show="item.state === 'todo'"><use href="#i-error"/></svg>
+                <svg class="icon icon-sm" x-show="item.state === 'info'"><use href="#i-info"/></svg>
+                <span class="sr-only" x-text="checkStateLabel(item)"></span>
+                <span><strong x-text="item.title"></strong> <small x-text="item.text"></small></span>
+              </button>
+            </li>
+          </template>
+        </ol>
+      </div>
+
+      <template x-if="legacyAcceptanceCount()">
+        <div class="notice notice-block">
+          <svg class="icon"><use href="#i-info"/></svg>
+          <span x-text="'This application has ' + legacyAcceptanceCount() + ' acceptance transform rule(s) from an earlier version. Those belong to an identity provider (claims provider trust).'"></span>
+          <button class="btn" type="button" @click="moveAcceptanceToIdp()">Move to a new identity provider</button>
+        </div>
+      </template>
+
+      <!-- @include partials/pipeline.html -->
+      <!-- @include partials/help.html -->
+
+      <div class="profile-grid">
+        <div class="stack">
+          <div class="step-head">
+            <h2 x-text="setMeta().title"></h2>
+            <span class="muted small" x-text="'AD FS: ' + setMeta().adfs"></span>
+          </div>
+
+          <template x-if="isAccessStep()">
+            <div class="card stack policy-card">
+              <div class="field">
+                <span id="access-mode">How AD FS decides who gets in</span>
+                <div class="seg" role="group" aria-labelledby="access-mode">
+                  <button type="button" :class="{ on: isAccessMode('keep') }" :aria-pressed="isAccessMode('keep') ? 'true' : 'false'"
+                    @click="setAccessMode('keep')">Keep the policy on the trust</button>
+                  <button type="button" :class="{ on: isAccessMode('policy') }" :aria-pressed="isAccessMode('policy') ? 'true' : 'false'"
+                    @click="setAccessMode('policy')">Built-in policy</button>
+                  <button type="button" :class="{ on: isAccessMode('rules') }" :aria-pressed="isAccessMode('rules') ? 'true' : 'false'"
+                    @click="setAccessMode('rules')">Rules</button>
+                </div>
+              </div>
+              <p class="hint" x-text="accessModeHelp()"></p>
+              <template x-if="isAccessMode('policy')">
+                <div class="stack">
+                  <label class="field"><span>Access control policy</span>
+                    <select id="policy-name" class="select" @change="setPolicyName($event)">
+                      <template x-for="p in accessPolicyChoices()" :key="p.name">
+                        <option :value="p.name" :selected="isPolicy(p.name)" x-text="p.custom ? p.name + ' (made in AD FS)' : p.name"></option>
+                      </template>
+                    </select>
+                    <span class="hint" x-text="policyHelp()"></span>
+                  </label>
+                  <template x-if="policyTakesGroups()">
+                    <label class="field"><span>AD groups, one per line (DOMAIN\Group or SID)</span>
+                      <textarea id="policy-groups" class="textarea mono policy-groups" :value="policyGroupsText()" @change="setPolicyGroups($event)"
+                        rows="3" spellcheck="false" placeholder="CONTOSO\Sales"></textarea>
+                    </label>
+                  </template>
+                  <template x-if="issues.length">
+                    <ul class="issues">
+                      <template x-for="(item, n) in issues" :key="n">
+                        <!-- @include partials/issue.html -->
+                      </template>
+                    </ul>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template x-if="!isAccessStep() && !isSetEnabled(setKey)">
+            <div class="notice notice-block">
+              <svg class="icon"><use href="#i-info"/></svg>
+              <span>This step is turned off, so it is not exported.</span>
+              <button class="btn" type="button" @click="setCurrentEnabled(true)">Turn on</button>
+            </div>
+          </template>
+
+          <template x-if="isSetEnabled(setKey)">
+            <div class="stack">
+              <template x-if="globalIssues().length">
+                <ul class="issues">
+                  <template x-for="(item, n) in globalIssues()" :key="n">
+                    <!-- @include partials/issue.html -->
+                  </template>
+                </ul>
+              </template>
+              <div class="rules">
+                <template x-for="rule in currentRules()" :key="rule.id">
+                  <!-- @include partials/rule.html -->
+                </template>
+                <template x-if="!currentRules().length">
+                  <div class="empty" x-text="setMeta().empty"></div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <template x-if="isSetEnabled(setKey)">
+          <!-- @include partials/palette.html -->
+        </template>
+      </div>
+
+      <template x-if="isSetEnabled(setKey)">
+        <!-- @include partials/output.html -->
+      </template>
+    </section>
+  </template>
+</div>

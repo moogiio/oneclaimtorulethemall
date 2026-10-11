@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>OneClaimToRuleThemAll · ADFS claim rules</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/vendor/fonts/fira-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/typer.css">
+  <script type="module" src="/js/landing.js"></script>
+</head>
+<body>
+  <!-- @include partials/icons.html -->
+  <main class="landing">
+    <div class="landing-card">
+      <div class="brand">
+        <svg class="icon"><use href="#i-shield"/></svg>
+        <span>OneClaim<b>ToRule</b>ThemAll</span>
+      </div>
+      <h1>Click together your AD FS claim rules</h1>
+      <p class="lead">Build claim rules by clicking, reuse them across applications, try a sign-in, and give your AD FS admin
+        one PowerShell script that shows the changes before it applies them.</p>
+      <ul class="features">
+        <li><svg class="icon"><use href="#i-check"/></svg><span>A guided setup for new applications, with templates for AWS, ServiceNow, Google Workspace, Zoom, Slack and more. Or give it the app's metadata file, and it picks the claims the app asks for</span></li>
+        <li><svg class="icon"><use href="#i-check"/></svg><span>Every rule in plain words, a linter with one-click fixes, and Try it to see what a test user gets. Sign-in fails? Paste the AD FS error and get it explained</span></li>
+        <li><svg class="icon"><use href="#i-check"/></svg><span>Import a whole AD FS farm with a read-only script. Export a script that previews changes, or steps to click through</span></li>
+      </ul>
+      <div class="notice" role="note">
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <span>There are no accounts. Your workspace gets a long secret link, and <strong>anyone with the link can view and
+          edit it</strong>. Bookmark it and only share it with people you trust. Lost links cannot be recovered.</span>
+      </div>
+      <div class="row row-wrap">
+        <button id="create" class="btn btn-primary btn-lg" type="button">
+          <svg class="icon"><use href="#i-plus"/></svg> Create a workspace
+        </button>
+        <span id="status" class="muted small" role="status" aria-live="polite"></span>
+      </div>
+      <p class="self-host">
+        <svg class="icon"><use href="#i-code"/></svg>
+        <span>Rather keep your claim rules on your own machine? The app is open source: get it from
+          <a href="https://github.com/moogiio/oneclaimtorulethemall" rel="noopener noreferrer">github.com/moogiio/oneclaimtorulethemall</a>
+          and run it locally with Node.js.</span>
+      </p>
+      <button id="typer-open" class="typer-egg" type="button">
+        <svg class="icon"><use href="#i-keyboard"/></svg> How fast can you type a claim rule?
+      </button>
+    </div>
+  </main>
+
+  <dialog id="typer" class="typer" aria-labelledby="typer-heading">
+    <div class="typer-body">
+      <div class="typer-head">
+        <h2 id="typer-heading"><svg class="icon"><use href="#i-keyboard"/></svg> Claim rule speed typer</h2>
+        <button id="typer-close" class="btn btn-ghost btn-icon" type="button" aria-label="Close">
+          <svg class="icon"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <p class="typer-rule" id="typer-rule"></p>
+      <p class="sr-only" id="typer-rule-sr"></p>
+      <div id="typer-text" class="typer-text" aria-hidden="true"></div>
+      <label class="sr-only" for="typer-input">Type the claim rule here</label>
+      <textarea id="typer-input" class="typer-input" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off"
+        spellcheck="false" aria-describedby="typer-rule-sr" placeholder="Start typing. The clock starts with your first key."></textarea>
+      <div class="typer-stats">
+        <span id="typer-time">0.0 s</span>
+        <strong id="typer-wpm">0 WPM</strong>
+        <span id="typer-accuracy">100% accurate</span>
+        <span id="typer-best" class="typer-best"></span>
+      </div>
+      <p id="typer-result" class="typer-result" role="status" aria-live="polite"></p>
+      <div class="typer-actions">
+        <button id="typer-again" class="btn" type="button">Again</button>
+        <button id="typer-next" class="btn btn-primary" type="button">Another rule</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<nav class="pipeline" aria-label="Steps a sign-in goes through">
+  <div class="pipe-end">
+    <svg class="icon"><use href="#i-user"/></svg>
+    <span x-text="profileTypeMeta().start"></span>
+  </div>
+  <template x-for="(key, n) in profileSteps()" :key="key">
+    <div class="pipe-seg">
+      <svg class="icon pipe-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+      <button type="button" class="pipe-step" :class="{ on: isSet(key), off: stepIsOff(key) }" @click="selectSet(key)"
+        :aria-current="isSet(key) ? 'step' : false">
+        <span class="pipe-num" x-text="n + 1"></span>
+        <span class="pipe-text">
+          <strong x-text="stepMeta(key).title"></strong>
+          <small x-text="'AD FS: ' + stepMeta(key).adfs"></small>
+          <span class="pipe-status">
+            <span x-text="stepStatus(key)"></span>
+            <template x-if="setCount(key, 'error')"><span class="badge error" x-text="setCount(key, 'error') + ' error(s)'"></span></template>
+            <template x-if="setCount(key, 'warning')"><span class="badge warning" x-text="setCount(key, 'warning') + ' warning(s)'"></span></template>
+          </span>
+        </span>
+      </button>
+    </div>
+  </template>
+  <div class="pipe-seg">
+    <svg class="icon pipe-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+    <div class="pipe-end">
+      <svg class="icon"><use href="#i-key"/></svg>
+      <span x-text="profileTypeMeta().end"></span>
+    </div>
+  </div>
+</nav>

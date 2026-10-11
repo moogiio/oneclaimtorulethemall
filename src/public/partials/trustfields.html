@@ -1,0 +1,115 @@
+<div class="stack trust-fields">
+  <div class="seg" role="group" :aria-label="'Where the trust for ' + (t.kind === 'idp' ? 'this identity provider' : 'this application') + ' comes from'">
+    <button type="button" :class="{ on: t.trust.mode === 'existing' }" :aria-pressed="t.trust.mode === 'existing' ? 'true' : 'false'"
+      @click="setTrustMode(t, 'existing')">It is already in AD FS</button>
+    <button type="button" :class="{ on: t.trust.mode === 'metadata' }" :aria-pressed="t.trust.mode === 'metadata' ? 'true' : 'false'"
+      @click="setTrustMode(t, 'metadata')">Create it from a metadata URL</button>
+    <button type="button" :class="{ on: t.trust.mode === 'file' }" :aria-pressed="t.trust.mode === 'file' ? 'true' : 'false'"
+      @click="setTrustMode(t, 'file')">Create it from a metadata file</button>
+    <template x-if="t.kind === 'app'">
+      <button type="button" :class="{ on: t.trust.mode === 'manual' }" :aria-pressed="t.trust.mode === 'manual' ? 'true' : 'false'"
+        @click="setTrustMode(t, 'manual')">Create it by hand</button>
+    </template>
+  </div>
+  <p class="hint" x-text="trustModeHelp(t)"></p>
+  <template x-if="t.trust.mode === 'metadata'">
+    <label class="field"><span>Metadata URL</span>
+      <input :id="t.prefix + 'trust-metadataUrl'" class="input mono" x-model.trim="t.trust.metadataUrl" maxlength="512" spellcheck="false"
+        autocomplete="off" placeholder="https://app.example.com/saml/metadata">
+      <span class="hint">The application's setup guide or admin page shows it. The AD FS server itself must be able to reach it.</span>
+    </label>
+  </template>
+  <template x-if="t.trust.mode === 'file'">
+    <div class="stack">
+      <div class="row row-wrap">
+        <label class="btn">
+          <svg class="icon"><use href="#i-upload"/></svg>
+          <span x-text="t.trust.metadataXml ? 'Choose another file' : 'Choose the metadata file'"></span>
+          <input :id="t.prefix + 'trust-file'" type="file" accept=".xml,application/xml,text/xml" class="sr-only" @change="readMetadataFile($event, t)">
+        </label>
+        <span class="mono" x-text="t.trust.metadataFile"></span>
+        <template x-if="t.trust.metadataXml">
+          <button class="btn btn-ghost" type="button" @click="downloadMetadata(t.trust)">
+            <svg class="icon icon-sm"><use href="#i-download"/></svg> Download it again
+          </button>
+        </template>
+      </div>
+      <span class="hint">The XML file from the application's admin page or setup guide, often called metadata.xml. It is read here in your
+        browser, and the export script takes it to AD FS.</span>
+      <details class="script-details">
+        <summary>Or paste the XML</summary>
+        <div class="stack">
+          <textarea class="textarea mono" :value="metadataPaste(t)" @input="setMetadataPaste(t, $event)" rows="5" spellcheck="false"
+            maxlength="204800" aria-label="Metadata XML"></textarea>
+          <div><button class="btn" type="button" @click="readMetadataPaste(t)">Read it</button></div>
+        </div>
+      </details>
+      <template x-if="metadataError(t)">
+        <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg><span x-text="metadataError(t)"></span></p>
+      </template>
+      <template x-for="facts in metadataFacts(t)" :key="t.prefix + 'facts'">
+        <div class="meta-facts stack-sm">
+          <dl>
+            <template x-for="row in facts.rows" :key="row.label">
+              <div><dt x-text="row.label"></dt><dd class="mono" x-text="row.value"></dd></div>
+            </template>
+          </dl>
+          <template x-if="facts.claims.length || facts.unknown.length">
+            <div class="stack-sm">
+              <strong>Claims it asks for</strong>
+              <ul class="meta-claims">
+                <template x-for="claim in facts.claims" :key="claim.name">
+                  <li>
+                    <span x-text="claim.text"></span>
+                    <template x-if="t.profile && !facts.off"><span class="badge" :class="metadataSentBadge(claim)" x-text="metadataSentLabel(claim)"></span></template>
+                  </li>
+                </template>
+                <template x-for="name in facts.unknown" :key="name">
+                  <li><span x-text="name"></span> <span class="badge warning">No AD attribute known, add it by hand</span></li>
+                </template>
+              </ul>
+              <template x-if="facts.off">
+                <p class="hint">Claims to send is switched off, so none of these are sent. Switch it on under Claims to send.</p>
+              </template>
+              <template x-if="t.profile && !facts.off && facts.missing">
+                <div><button class="btn" type="button" @click="addMetadataClaims(t)" x-text="facts.addLabel"></button></div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </template>
+  <template x-if="t.trust.mode === 'manual'">
+    <div class="stack">
+      <div class="field">
+        <span :id="t.prefix + 'trust-protocol'">How the application signs users in</span>
+        <div class="seg" role="group" :aria-labelledby="t.prefix + 'trust-protocol'">
+          <button type="button" :class="{ on: t.trust.protocol === 'saml' }" :aria-pressed="t.trust.protocol === 'saml' ? 'true' : 'false'"
+            @click="setTrustProtocol(t.trust, 'saml')">SAML 2.0</button>
+          <button type="button" :class="{ on: t.trust.protocol === 'wsfed' }" :aria-pressed="t.trust.protocol === 'wsfed' ? 'true' : 'false'"
+            @click="setTrustProtocol(t.trust, 'wsfed')">WS-Federation</button>
+        </div>
+      </div>
+      <label class="field"><span x-text="t.trust.protocol === 'saml' ? 'Identifier (the app calls it entity ID or audience)' : 'Identifier (the app calls it realm)'"></span>
+        <input :id="t.prefix + 'trust-identifier'" class="input mono" x-model.trim="t.trust.identifier" maxlength="512" spellcheck="false"
+          autocomplete="off" placeholder="https://app.example.com">
+      </label>
+      <label class="field"><span x-text="t.trust.protocol === 'saml' ? 'Reply URL (the app calls it ACS URL or SAML endpoint)' : 'Reply URL (the WS-Federation sign-in URL of the app)'"></span>
+        <input :id="t.prefix + 'trust-replyUrl'" class="input mono" x-model.trim="t.trust.replyUrl" maxlength="512" spellcheck="false"
+          autocomplete="off" placeholder="https://app.example.com/saml/acs">
+      </label>
+    </div>
+  </template>
+  <template x-if="trustIssues(t).length">
+    <ul class="issues">
+      <template x-for="(item, n) in trustIssues(t)" :key="n">
+        <li class="issue" :class="item.severity">
+          <svg class="icon" x-show="item.severity === 'error'"><use href="#i-error"/></svg>
+          <svg class="icon" x-show="item.severity !== 'error'"><use href="#i-info"/></svg>
+          <span x-text="item.message"></span>
+        </li>
+      </template>
+    </ul>
+  </template>
+</div>

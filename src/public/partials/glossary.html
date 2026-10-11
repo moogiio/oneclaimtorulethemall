@@ -1,0 +1,16 @@
+<dialog x-ref="glossaryDialog" class="dialog-glossary" aria-labelledby="glossary-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="glossary-title">AD FS words explained</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeGlossary()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <dl class="glossary" tabindex="0" aria-label="Terms">
+      <template x-for="entry in glossaryItems()" :key="entry[0]">
+        <div><dt x-text="entry[0]"></dt><dd x-text="entry[1]"></dd></div>
+      </template>
+    </dl>
+  </div>
+</dialog>

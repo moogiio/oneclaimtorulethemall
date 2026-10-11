@@ -1,0 +1,42 @@
+<section aria-labelledby="overview-title">
+  <div class="page-head">
+    <div class="grow">
+      <h1 id="overview-title" tabindex="-1">Overview</h1>
+      <p class="muted" x-text="overviewReadyCount() + ' of ' + overview.length + ' ready to export. Click anything to go there.'"></p>
+    </div>
+    <button class="btn btn-primary" type="button" @click="openExport('all')">
+      <svg class="icon"><use href="#i-code"/></svg> Export all
+    </button>
+  </div>
+  <div class="overview-wrap">
+    <table class="overview-table">
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">Trust in AD FS</th><th scope="col">Who gets in</th><th scope="col">Claims</th><th scope="col">Name ID</th></tr>
+      </thead>
+      <tbody>
+        <template x-for="row in overview" :key="row.id">
+          <tr>
+            <th scope="row">
+              <button type="button" class="overview-name" @click="openFromOverview(row, null)">
+                <strong x-text="row.name || 'Untitled'"></strong><small x-text="overviewKind(row)"></small>
+              </button>
+            </th>
+            <template x-for="key in overviewColumns()" :key="key">
+              <td>
+                <template x-if="overviewCell(row, key).state">
+                  <button type="button" class="overview-cell" :class="overviewCell(row, key).state" @click="openFromOverview(row, overviewCell(row, key))">
+                    <svg class="icon icon-sm" x-show="overviewCell(row, key).state === 'ok'"><use href="#i-check"/></svg>
+                    <svg class="icon icon-sm" x-show="overviewCell(row, key).state === 'todo'"><use href="#i-error"/></svg>
+                    <svg class="icon icon-sm" x-show="overviewCell(row, key).state === 'info'"><use href="#i-info"/></svg>
+                    <span class="sr-only" x-text="checkStateLabel(overviewCell(row, key))"></span>
+                    <span x-text="overviewCell(row, key).text"></span>
+                  </button>
+                </template>
+              </td>
+            </template>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,0 +1,53 @@
+<dialog x-ref="addToDialog" class="dialog-addto" aria-labelledby="addto-title">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="addto-title" x-text="addToRule() ? 'Add “' + ruleTitle(addToRule()) + '” to…' : 'Add to…'"></h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closeAddTo()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <p class="hint">The rule is linked, so a later change in the rule library applies everywhere it is used. It is added at
+      the end of each step.</p>
+    <template x-if="addToIsRaw()">
+      <div class="field">
+        <span id="addto-step">Custom rules can go into any step. Pick one:</span>
+        <div class="seg" role="group" aria-labelledby="addto-step">
+          <template x-for="meta in addToSteps()" :key="meta.key">
+            <button type="button" :class="{ on: addTo.step === meta.key }" :aria-pressed="addTo.step === meta.key ? 'true' : 'false'"
+              @click="setAddToStep(meta.key)" x-text="meta.title"></button>
+          </template>
+        </div>
+      </div>
+    </template>
+    <template x-if="addToTargets().length">
+      <div class="stack-sm">
+        <div class="row row-wrap">
+          <button class="btn btn-ghost" type="button" @click="pickAllAddTo(true)">Select all</button>
+          <button class="btn btn-ghost" type="button" @click="pickAllAddTo(false)">Select none</button>
+        </div>
+        <ul class="pick-list">
+          <template x-for="t in addToTargets()" :key="t.id">
+            <li>
+              <label class="pick" :class="{ done: t.used }">
+                <input type="checkbox" :checked="t.used || isAddToPicked(t)" :disabled="t.used || t.full" @change="toggleAddTo(t, $event)">
+                <span class="pick-text">
+                  <strong x-text="t.profile.name || 'Untitled'"></strong>
+                  <small x-text="t.title + (t.note ? ' · ' + t.note : '')"></small>
+                </span>
+              </label>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+    <template x-if="!addToTargets().length">
+      <div class="empty">No application or identity provider has a step this rule fits in.</div>
+    </template>
+    <div class="row row-wrap">
+      <div class="spacer"></div>
+      <button class="btn" type="button" @click="closeAddTo()">Cancel</button>
+      <button class="btn btn-primary" type="button" @click="confirmAddTo()" :disabled="!addToCount()" x-text="addToButtonLabel()"></button>
+    </div>
+  </div>
+</dialog>

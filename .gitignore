@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output: deploy this folder, don't commit it (npm run build recreates it)
+dist/
+
+# Workspace data. The NeDB file holds every workspace, including the secret
+# link ids, so it must never be committed. NeDB writes *.db~ while compacting.
+data/
+*.db
+*.db~
+
+# Netlify CLI state (the local site link and local builds). netlify.toml and
+# netlify/functions stay in git: Netlify deploys from them.
+.netlify/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local tool state
+.claude-flow/
+.swarm/
+agentdb.rvf*
+ruvector.db
+.claude/settings.local.json
+.claude/security-scans/
+.claude/proven-config.json
+.claude/.proven-config-version
+.claude/scheduled_tasks.lock

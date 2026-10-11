@@ -1,0 +1,26 @@
+<dialog x-ref="deleteDialog" class="dialog-danger" aria-labelledby="delete-title" aria-describedby="delete-body"
+  @close="onDeleteClosed()" @cancel="onDeleteCancel($event)">
+  <div class="dialog-body">
+    <div class="card-head">
+      <span class="danger-icon" aria-hidden="true"><svg class="icon"><use href="#i-alert"/></svg></span>
+      <h2 id="delete-title" x-text="deleteTitle()"></h2>
+    </div>
+    <p id="delete-body" class="delete-body" x-text="deleteBody()"></p>
+    <label class="field" for="delete-confirm">
+      <span>Type <strong class="confirm-name" x-text="deleteExpected()"></strong> to confirm</span>
+      <input id="delete-confirm" class="input" x-model="del.typed" autocomplete="off" spellcheck="false"
+        :disabled="del.busy" @keydown.enter.prevent="confirmDelete()">
+    </label>
+    <template x-if="del.error">
+      <p class="issue error" role="alert"><svg class="icon"><use href="#i-error"/></svg><span x-text="del.error"></span></p>
+    </template>
+    <div class="row row-wrap">
+      <div class="spacer"></div>
+      <button class="btn" type="button" @click="closeDelete()" :disabled="del.busy">Cancel</button>
+      <button class="btn btn-danger-solid" type="button" @click="confirmDelete()" :disabled="!deleteMatches() || del.busy">
+        <svg class="icon"><use href="#i-trash"/></svg>
+        <span x-text="del.busy ? 'Deleting…' : deleteTitle()"></span>
+      </button>
+    </div>
+  </div>
+</dialog>

@@ -1,0 +1,32 @@
+<section class="output card stack" aria-labelledby="out-title">
+  <div class="card-head">
+    <div class="out-title">
+      <h2 id="out-title" x-text="'Generated rules: ' + setMeta().title"></h2>
+      <span class="muted small" x-text="'AD FS: ' + setMeta().adfs"></span>
+    </div>
+    <span class="badge error" x-show="issueCount('error')" x-text="issueCount('error') + ' error(s)'"></span>
+    <span class="badge warning" x-show="issueCount('warning')" x-text="issueCount('warning') + ' warning(s)'"></span>
+    <span class="badge accent" x-show="!issueCount('error') && !issueCount('warning')">Lint clean</span>
+    <div class="spacer"></div>
+    <button class="btn" type="button" @click="copyOutput()" :disabled="!output">
+      <svg class="icon"><use href="#i-copy"/></svg> Copy rules
+    </button>
+    <button class="btn btn-primary" type="button" @click="openExport()">
+      <svg class="icon"><use href="#i-code"/></svg> Export for AD FS
+    </button>
+  </div>
+  <template x-if="outputHasGroupNames()">
+    <p class="notice" role="note"><svg class="icon"><use href="#i-info"/></svg>
+      <span>AD group names show as <code>{SID of …}</code> here, which AD FS rejects. Use Export for AD FS instead of these
+        rules: the script looks up the real SIDs, and the step-by-step view shows how to look them up.</span></p>
+  </template>
+  <template x-if="output">
+    <pre tabindex="0" class="code" x-text="output" aria-label="Generated claim rules"></pre>
+  </template>
+  <template x-if="!output">
+    <div class="empty">Nothing to export yet. Active rules show up here as AD FS claim rule language.</div>
+  </template>
+  <p class="hint">Export for AD FS gives your AD FS admin one script for the whole
+    <span x-text="profileTypeMeta().label.toLowerCase()"></span>, which shows what changes and asks before applying, or the
+    same as steps to click through in AD FS Management.</p>
+</section>

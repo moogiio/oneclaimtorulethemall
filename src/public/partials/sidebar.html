@@ -1,0 +1,46 @@
+<nav class="sidebar" aria-label="Workspace">
+  <template x-if="ws.profiles.length">
+    <button class="nav-item" type="button" :class="{ on: isOverview() }" @click="openOverview()" :aria-current="isOverview() ? 'page' : false">
+      <svg class="icon"><use href="#i-layers"/></svg>
+      <span class="name">Overview</span>
+    </button>
+  </template>
+  <div class="nav-label">Library</div>
+  <p class="nav-sub">Reusable rules for all your applications</p>
+  <button class="nav-item" type="button" :class="{ on: isRuleLibrary() }" @click="openRuleLibrary()">
+    <svg class="icon"><use href="#i-rules"/></svg>
+    <span class="name">Rule library</span>
+    <span class="count" x-text="ws.rules.length"></span>
+  </button>
+
+  <template x-for="ptype in profileTypes()" :key="ptype.key">
+    <div class="nav-group">
+      <div class="nav-label" x-text="ptype.plural"></div>
+      <p class="nav-sub" x-text="ptype.blurb + ' (' + ptype.trust + 's)'"></p>
+      <template x-for="profile in profilesOfType(ptype.key)" :key="profile.id">
+        <button class="nav-item" type="button" :class="{ on: isCurrentProfile(profile) }" @click="openProfile(profile)"
+          :aria-current="isCurrentProfile(profile) ? 'page' : false">
+          <svg class="icon" x-show="ptype.key === 'app'"><use href="#i-app"/></svg>
+          <svg class="icon" x-show="ptype.key === 'idp'"><use href="#i-building"/></svg>
+          <span class="name" x-text="profile.name || 'Untitled'"></span>
+          <span class="count" x-text="profileRuleCount(profile)" title="Rules in active steps"></span>
+        </button>
+      </template>
+      <button class="nav-item nav-add" type="button" @click="newOfType(ptype.key)">
+        <svg class="icon"><use href="#i-plus"/></svg>
+        <span class="name" x-text="'New ' + ptype.label.toLowerCase()"></span>
+      </button>
+    </div>
+  </template>
+
+  <div class="nav-group">
+    <button class="nav-item nav-help" type="button" @click="openTroubleshoot()">
+      <svg class="icon"><use href="#i-alert"/></svg>
+      <span class="name">Sign-in fails?</span>
+    </button>
+    <button class="nav-item nav-help" type="button" @click="openGlossary()">
+      <svg class="icon"><use href="#i-help"/></svg>
+      <span class="name">AD FS words explained</span>
+    </button>
+  </div>
+</nav>

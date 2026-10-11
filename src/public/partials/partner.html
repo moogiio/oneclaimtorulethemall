@@ -1,0 +1,48 @@
+<dialog x-ref="partnerDialog" class="dialog-wizard" aria-labelledby="partner-title" @close="forgetMetadataState()">
+  <div class="dialog-body">
+    <div class="card-head">
+      <h2 id="partner-title">Add an identity provider</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" type="button" @click="closePartner()" aria-label="Close">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <p class="muted">An identity provider is where users come from, for example a partner company with its own AD FS. Its users can then
+      sign in to your applications.</p>
+    <label class="field"><span>Name</span>
+      <input id="partner-name" class="input" x-model="partner.answers.name" maxlength="200" autocomplete="off" placeholder="e.g. Fabrikam">
+      <span class="hint">The name of the claims provider trust in AD FS Management.</span>
+    </label>
+    <div class="field">
+      <span>Is it already set up in AD FS?</span>
+      <template x-for="t in [partnerTrustCtx()]" :key="'partner-trust'">
+        <!-- @include partials/trustfields.html -->
+      </template>
+    </div>
+    <div class="field">
+      <span>Which claims to accept from it</span>
+      <div class="wiz-checks">
+        <template x-for="c in partnerClaims()" :key="c.key">
+          <label class="check"><input type="checkbox" :checked="isPartnerClaim(c.key)" @change="togglePartnerClaim(c.key, $event)"> <span x-text="c.label"></span></label>
+        </template>
+      </div>
+      <span class="hint">Claims that are not accepted never reach your applications. Accept only what your applications need.</span>
+    </div>
+    <template x-if="partnerShownErrors().length || partner.error">
+      <ul class="issues" role="alert">
+        <template x-for="(message, n) in partnerShownErrors()" :key="n">
+          <li class="issue error"><svg class="icon"><use href="#i-error"/></svg><span x-text="message"></span></li>
+        </template>
+        <template x-if="partner.error">
+          <li class="issue error"><svg class="icon"><use href="#i-error"/></svg><span x-text="partner.error"></span></li>
+        </template>
+      </ul>
+    </template>
+    <div class="row row-wrap">
+      <button class="btn btn-ghost" type="button" @click="closePartner()">Cancel</button>
+      <button class="btn btn-ghost" type="button" @click="partnerStartEmpty()">Skip, start empty</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" type="button" @click="partnerCreate()"><svg class="icon"><use href="#i-check"/></svg> Add identity provider</button>
+    </div>
+  </div>
+</dialog>
