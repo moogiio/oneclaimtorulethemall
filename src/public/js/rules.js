@@ -218,7 +218,7 @@ export const rules = {
       else if (!set.enabled) note = 'This step is off, so the trust keeps its own rules. Adding turns it on, and the export then replaces them';
       if (!used && rule.kind === 'claim' && rule.source === 'ldap' && key === 'acceptanceTransform') {
         risky = true;
-        note = 'AD attribute lookups only work on the Active Directory claims provider trust';
+        note = 'Starts from the Windows account name, which users of an identity provider may not have';
       }
       out.push({
         id: `${profile.id}:${key}`, profile, key, title: ruleSetMeta(key).title, used, full: set.rules.length >= LIMITS.rules, risky, note,

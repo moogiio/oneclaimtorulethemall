@@ -155,3 +155,26 @@ test('the usual AD form can be taken over by the builder; the plain words keep t
   assert.match(explainRule(lookup), /\(the value CONTOSO\\jdoe, from AD AUTHORITY\)\.$/);
   assert.equal(lookupSubtitle(lookup.lookup), 'Asks Active Directory · sends 2 claim types');
 });
+
+test('identity providers can look up in a store too; Active Directory gets a note there', () => {
+  const ws = emptyWorkspace();
+  const partner = newProfile('Fabrikam', 'idp');
+  const rule = newRule('lookup', { lookup: newLookup() });
+  const l = rule.lookup;
+  l.inputs[0].type = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
+  l.inputs[0].issuer = '';
+  l.query = ';department;{0}';
+  l.outputs[0].type = 'http://contoso/department';
+  partner.ruleSets.acceptanceTransform.rules.push(rule);
+  ws.profiles.push(partner);
+  const lint = () => lintRuleSet(ws, partner, 'acceptanceTransform').filter((i) => i.ruleId).map((i) => `${i.severity} ${i.field}`);
+  assert.deepEqual(lint(), ['info lookup-store']);
+  assert.match(lintRuleSet(ws, partner, 'acceptanceTransform').find((i) => i.field === 'lookup-store').message, /only finds users who have an account in your AD/);
+  assert.match(explainRule(rule, new Map(), 'acceptanceTransform'), /and accepts what it returns as department/);
+  // A SQL store with the partner's e-mail address is fine.
+  Object.assign(l, { storeKind: 'sql', store: 'Partner database', query: 'SELECT department FROM partners WHERE mail = {0}' });
+  assert.deepEqual(lint(), ['info lookup-store']);
+  // Importing into Claims to accept recognizes lookups as well.
+  const { rules: [back] } = importRules(generateRule(rule), ['claim', 'lookup', 'raw']);
+  assert.equal(back.kind, 'lookup');
+});

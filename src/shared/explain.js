@@ -93,7 +93,7 @@ export function explainRule(input, rulesById = new Map(), key = 'issuanceTransfo
   const rule = resolveRule(input, rulesById);
   if (rule.kind === 'missing') return 'This rule was deleted from the rule library, so it does nothing.';
   if (rule.kind === 'raw') return explainText(rule.text);
-  if (rule.kind === 'lookup') return explainLookup(rule);
+  if (rule.kind === 'lookup') return explainLookup(rule, key === 'acceptanceTransform' ? 'accepts' : 'sends');
   const conditions = (rule.conditions || []).map((c) => lowerFirst(describeCondition(c)));
   const when = conditions.length ? `, if ${list(conditions)}` : '';
   if (rule.kind === 'permit') return sentence(`${conditions.length ? 'lets the user in' : 'lets everyone in'}${when}`);

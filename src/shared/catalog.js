@@ -142,7 +142,7 @@ export const RULE_SETS = [
   {
     key: 'acceptanceTransform', label: 'Acceptance Transform', title: 'Claims to accept',
     adfs: 'Acceptance Transform Rules', profileType: 'idp', psParam: 'AcceptanceTransformRules',
-    kinds: ['claim', 'raw'],
+    kinds: ['claim', 'lookup', 'raw'],
     empty: 'Nothing is accepted yet, so no claims from this identity provider reach your applications. Start with a quick start.',
     help: {
       what: 'Decides which claims AD FS accepts from this identity provider. Claims that are not accepted here are dropped and never reach your applications.',

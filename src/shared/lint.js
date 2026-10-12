@@ -282,9 +282,17 @@ export function lintRuleSet(workspace, profile, key) {
       return;
     }
     out.push(...singleRuleIssues(rule, key));
+    if (rule.kind === 'lookup' && key === 'acceptanceTransform' && rule.lookup.storeKind === 'ad') {
+      out.push({
+        ...issue('info', 'An Active Directory lookup only finds users who have an account in your AD (an LDAP filter in the query can find them by '
+          + 'e-mail, for example). For users without one, ask your own attribute store', rule.id),
+        field: 'lookup-store',
+      });
+    }
     if (rule.kind === 'claim') {
       if (rule.source === 'ldap' && key === 'acceptanceTransform') {
-        out.push(issue('info', 'AD attribute lookups need the Windows account name and only work on the Active Directory claims provider trust', rule.id));
+        out.push(issue('info', 'An AD attribute lookup starts from the Windows account name, which users of an identity provider may not have. '
+          + '"Look up in an attribute store" can find them another way, in AD or in your own store', rule.id));
       }
       const dup = rules.findIndex((r, j) => j < i && r.kind === 'claim' && sameClaimSource(r, rule)
         && condKey(r.conditions) === condKey(rule.conditions));

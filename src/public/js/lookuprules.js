@@ -28,6 +28,21 @@ export const lookuprules = {
     this.focusById(`f-lookup-input-${rule.lookup.inputs[0].id}-${rule.id}`);
   },
 
+  // An identity provider accepts claims and passes them on to the applications.
+  lookupForIdp() {
+    return this.view === 'profile' && this.setKey === 'acceptanceTransform';
+  },
+
+  lookupOutputsTitle() {
+    return this.lookupForIdp() ? 'Claims to accept with what the store returns' : 'Claims to send with what the store returns';
+  },
+
+  lookupAddText() {
+    return this.lookupForIdp()
+      ? 'Keep them for the rules after this one, instead of passing them on to your applications'
+      : 'Keep them for the rules after this one, instead of sending them to the application';
+  },
+
   lookupStores() {
     return LOOKUP_STORES;
   },

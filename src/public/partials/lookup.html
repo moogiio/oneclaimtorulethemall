@@ -129,7 +129,7 @@
   </fieldset>
 
   <fieldset class="lookup-part">
-    <legend><span class="lookup-num">5</span> Claims to send with what the store returns</legend>
+    <legend><span class="lookup-num">5</span> <span x-text="lookupOutputsTitle()"></span></legend>
     <p class="hint">One claim type per value the store returns, in the same order.</p>
     <template x-for="(output, n) in rule.lookup.outputs" :key="output.id">
       <div class="lookup-item">
@@ -153,7 +153,7 @@
       <!-- @include partials/lookupissues.html -->
     </template>
     <label class="check"><input type="checkbox" x-model="rule.lookup.add">
-      <span>Keep them for the rules after this one, instead of sending them to the application</span></label>
+      <span x-text="lookupAddText()"></span></label>
   </fieldset>
 
   <details class="lookup-preview">

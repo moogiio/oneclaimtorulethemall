@@ -91,8 +91,8 @@ export function lookupSubtitle(l) {
   return `Asks ${store} · ${l.add ? 'keeps' : 'sends'} ${what}`;
 }
 
-// The lookup in plain words.
-export function explainLookup(rule) {
+// The lookup in plain words. `verb` is 'accepts' for an identity provider.
+export function explainLookup(rule, verb = 'sends') {
   const l = rule.lookup;
   const store = l.storeKind === 'ad' ? 'Active Directory' : `the attribute store "${l.store || '(no name yet)'}"`;
   const values = l.params.map((p) => paramText(l, p));
@@ -102,8 +102,8 @@ export function explainLookup(rule) {
     return `a ${claimTypeLabel(i.type) || i.type} claim${checks.length ? ` (${checks.join(', ')})` : ''}`;
   });
   let text = `Asks ${store}${values.length ? ` with ${list(values)}` : ''}`;
-  text += sends.length ? `, and ${l.add ? 'keeps' : 'sends'} what it returns as ${list(sends)}` : ', but sends nothing yet';
-  if (l.add) text += ' for the rules after it (it is not sent to the application)';
+  text += sends.length ? `, and ${l.add ? 'keeps' : verb} what it returns as ${list(sends)}` : `, but ${verb} nothing yet`;
+  if (l.add) text += ' for the rules after it (it is not passed on)';
   if (needs.length) text += `. Only for users with ${list(needs)}`;
   return `${text}.`;
 }
