@@ -6,6 +6,7 @@ import {
 import { explainRule } from '/lib/explain.js';
 import { defaultRuleName } from '/lib/generate.js';
 import { lookupSubtitle } from '/lib/lookup.js';
+import { valueMapSubtitle } from '/lib/valuemap.js';
 import {
   indexById as byId, describeCondition, newCondition, newRule, setClaimSource, sourceSummary,
 } from '/lib/model.js';
@@ -67,6 +68,7 @@ export const rulecards = {
     }
     if (shown.kind === 'raw') return `${prefix}Custom rule in the AD FS claim rule language`;
     if (shown.kind === 'lookup') return prefix + lookupSubtitle(shown.lookup);
+    if (shown.kind === 'valuemap') return prefix + valueMapSubtitle(shown.valuemap);
     const verb = shown.kind === 'permit' ? 'Permits' : 'Denies';
     return prefix + (shown.conditions.length ? `${verb} users who match all conditions` : `${verb} everyone`);
   },
@@ -110,6 +112,7 @@ export const rulecards = {
     const add = (rule) => {
       if (rule.kind === 'claim') addType(rule.type, rule.label);
       if (rule.kind === 'lookup') [...rule.lookup.inputs, ...rule.lookup.outputs].forEach((x) => addType(x.type));
+      if (rule.kind === 'valuemap') [rule.valuemap.inputType, rule.valuemap.outputType].forEach((type) => addType(type));
     };
     this.ws.rules.forEach(add);
     for (const profile of this.ws.profiles) {

@@ -43,6 +43,11 @@ export function escapeRegex(value) {
   return String(value).replace(/[\\^$.*+?()[\]{}|#]/g, '\\$&');
 }
 
+// What escapeRegex writes, as regex source: plain characters, and the
+// characters it escapes with a backslash. Importers read it back with this.
+export const ESCAPED_LITERAL = String.raw`(?:\\[\\^$.*+?()[\]{}|#]|[^\\^$.*+?()[\]{}|#])*`;
+export const unescapeLiteral = (s) => s.replace(/\\(.)/g, '$1');
+
 // Group conditions take DOMAIN\Group as well as a SID. AD FS compares SIDs,
 // which only a domain member can look up, so a name becomes the placeholder
 // `Value == {SID of DOMAIN\Group}` that the PowerShell export replaces with
@@ -145,7 +150,66 @@ function nameIdProperty(rule) {
 // their text, so this is only their name in the app.
 export function defaultRuleName(rule) {
   if (rule.kind === 'claim') return claimTypeLabel(rule.type) || 'Send a claim';
-  return { permit: 'Permit', deny: 'Deny', lookup: 'Look up in an attribute store' }[rule.kind] || 'Custom rule';
+  return {
+    permit: 'Permit', deny: 'Deny', lookup: 'Look up in an attribute store', valuemap: 'Translate values',
+  }[rule.kind] || 'Custom rule';
+}
+
+// The Value check of a "Translate values" case. Exact matches compare with
+// ==, the others are regexes with the value escaped; (?i) ignores case.
+// Patterns are used as written.
+export function casePattern(c, ignoreCase) {
+  if (c.match === 'regex') return { op: '=~', value: c.value };
+  const i = ignoreCase ? '(?i)' : '';
+  const v = escapeRegex(c.value);
+  switch (c.match) {
+    case 'startsWith': return { op: '=~', value: `^${i}${v}` };
+    case 'contains': return { op: '=~', value: `${i}${v}` };
+    case 'endsWith': return { op: '=~', value: `${i}${v}$` };
+    default: return ignoreCase ? { op: '=~', value: `^${i}${v}$` } : { op: '==', value: c.value };
+  }
+}
+
+// "Translate values" as one rule per case, laid out like hand-written rules
+// of this kind. When the first match wins, the cases after the first only
+// run while no earlier case made the claim (NOT EXISTS), like a switch with
+// break. "Anything else" runs last, when no case made it. `field` of an
+// error names the part of the translation it is about.
+function valueMapRule(rule) {
+  const m = rule.valuemap;
+  if (!m || !m.inputType) throw new EncodeError('Choose the claim type to translate', 'map-input');
+  if (!m.outputType) throw new EncodeError('Choose the claim type to send', 'map-output');
+  if (!m.cases.length) throw new EncodeError('Add at least one case', 'map-cases');
+  const name = rule.label || defaultRuleName(rule);
+  const issuer = m.inputIssuer ? `, Issuer == ${q(m.inputIssuer, 'Issuer', 'map-issuer')}` : '';
+  const input = `Type == ${q(m.inputType, 'Claim type', 'map-input')}${issuer}`;
+  const output = q(m.outputType, 'Claim type', 'map-output');
+  const verb = m.add ? 'add' : 'issue';
+  const notYet = ` && NOT EXISTS([Type == ${output}])`;
+  const rules = m.cases.map((c, n) => {
+    if (!c.value) throw new EncodeError('Enter the value to look for', `map-value-${c.id}`);
+    if (!c.output) throw new EncodeError('Enter the value to send', `map-send-${c.id}`);
+    const p = casePattern(c, m.ignoreCase);
+    const criteria = `Type == ${q(m.inputType, 'Claim type', 'map-input')}, Value ${p.op} ${q(p.value, 'The value', `map-value-${c.id}`)}${issuer}`;
+    return [
+      ruleName(`${name}: ${c.output}`),
+      `c:[${criteria}]`,
+      ...(m.firstMatch && n > 0 ? [notYet] : []),
+      ` => ${verb}(Type = ${output}, Value = ${q(c.output, 'The value to send', `map-send-${c.id}`)});`,
+    ].join('\n');
+  });
+  if (m.otherwise === 'value' || m.otherwise === 'keep') {
+    // A fixed value is sent once; "as it is" sends each value the user has.
+    const value = m.otherwise === 'keep' ? 'c.Value' : q(m.otherValue, 'The value for anything else', 'map-other');
+    if (m.otherwise === 'value' && !m.otherValue) throw new EncodeError('Enter the value to send for anything else', 'map-other');
+    rules.push([
+      ruleName(`${name}: anything else`),
+      m.otherwise === 'keep' ? `c:[${input}]` : `EXISTS([${input}])`,
+      notYet,
+      ` => ${verb}(Type = ${output}, Value = ${value});`,
+    ].join('\n'));
+  }
+  return rules.join('\n\n');
 }
 
 // "Look up in an attribute store", laid out like hand-written rules of this
@@ -256,6 +320,7 @@ export function generateRule(input, rulesById = new Map()) {
   }
   if (rule.kind === 'claim') return claimRule(rule);
   if (rule.kind === 'lookup') return lookupRule(rule);
+  if (rule.kind === 'valuemap') return valueMapRule(rule);
   throw new EncodeError(`Unknown rule kind "${rule.kind}"`);
 }
 

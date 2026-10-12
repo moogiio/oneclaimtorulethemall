@@ -10,6 +10,7 @@
       <svg class="icon" x-show="shownKind(rule) === 'deny'"><use href="#i-deny"/></svg>
       <svg class="icon" x-show="shownKind(rule) === 'raw'"><use href="#i-code"/></svg>
       <svg class="icon" x-show="shownKind(rule) === 'lookup'"><use href="#i-database"/></svg>
+      <svg class="icon" x-show="shownKind(rule) === 'valuemap'"><use href="#i-translate"/></svg>
     </span>
     <div class="rule-title">
       <strong>
@@ -64,7 +65,11 @@
       <!-- @include partials/lookup.html -->
     </template>
 
-    <template x-if="!isLinked(rule) && !ruleKindIs(rule, 'raw') && !ruleKindIs(rule, 'lookup')">
+    <template x-if="!isLinked(rule) && ruleKindIs(rule, 'valuemap')">
+      <!-- @include partials/valuemap.html -->
+    </template>
+
+    <template x-if="!isLinked(rule) && !ruleKindIs(rule, 'raw') && !ruleKindIs(rule, 'lookup') && !ruleKindIs(rule, 'valuemap')">
       <div class="stack">
         <div class="rule-controls">
           <label class="field"><span>Rule name (optional)</span>
@@ -96,9 +101,11 @@
         <label class="field"><span>Rule text</span>
           <textarea class="textarea mono" x-model="rule.text" spellcheck="false" rows="6"></textarea>
         </label>
-        <template x-if="rawAsLookup(rule)">
-          <div class="notice"><svg class="icon"><use href="#i-database"/></svg>
-            <span class="grow">This rule asks an attribute store. You can build and change it with clicks instead of text.</span>
+        <template x-if="rawAsClicks(rule)">
+          <div class="notice">
+            <svg class="icon" x-show="rawClicksKind(rule) === 'lookup'"><use href="#i-database"/></svg>
+            <svg class="icon" x-show="rawClicksKind(rule) === 'valuemap'"><use href="#i-translate"/></svg>
+            <span class="grow" x-text="rawClicksText(rule)"></span>
             <button class="btn" type="button" @click="editRawWithClicks(rule)">Edit with clicks</button>
           </div>
         </template>

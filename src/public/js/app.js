@@ -27,6 +27,7 @@ import { emptyPartnerState, partnerwizard } from './partnerwizard.js';
 import { emptyMetadataState, metadatafile } from './metadatafile.js';
 import { emptyTroubleState, troubleshoot } from './troubleshoot.js';
 import { lookuprules } from './lookuprules.js';
+import { emptyPasteState, valuemaprules } from './valuemaprules.js';
 
 const SAVE_DELAY_MS = 700;
 const LINK_ID = /^\/w\/([A-Za-z0-9_-]{32})$/;
@@ -59,6 +60,7 @@ function state() {
     dropId: '',
     dropWhere: '',
     openSettings: {},
+    mapPaste: emptyPasteState(),
     output: '',
     issues: [],
     issueMap: {},
@@ -356,5 +358,5 @@ function compose(...parts) {
   return target;
 }
 
-Alpine.data('app', () => compose(state(), core, history, rules, rulecards, profiles, io, deletes, tryit, farmimport, apptemplates, setupwizard, checklist, glossary, partnerwizard, metadatafile, troubleshoot, lookuprules));
+Alpine.data('app', () => compose(state(), core, history, rules, rulecards, profiles, io, deletes, tryit, farmimport, apptemplates, setupwizard, checklist, glossary, partnerwizard, metadatafile, troubleshoot, lookuprules, valuemaprules));
 Alpine.start();

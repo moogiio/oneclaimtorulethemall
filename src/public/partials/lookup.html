@@ -1,7 +1,9 @@
 <div class="lookup stack">
-  <label class="field"><span>Rule name (optional)</span>
-    <input class="input" x-model="rule.label" placeholder="Look up in an attribute store" maxlength="200" autocomplete="off">
-  </label>
+  <template x-if="!isRuleLibrary()">
+    <label class="field"><span>Rule name (optional)</span>
+      <input class="input" x-model="rule.label" placeholder="Look up in an attribute store" maxlength="200" autocomplete="off">
+    </label>
+  </template>
 
   <fieldset class="lookup-part">
     <legend><span class="lookup-num">1</span> Claims it starts from</legend>

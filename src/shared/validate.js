@@ -5,12 +5,13 @@
 import { LIMITS, OP_KEYS, PROFILE_TYPE_KEYS, RULE_SET_KEYS, SOURCES } from './catalog.js';
 import { migrateWorkspace } from './migrate.js';
 import { CLAIM_DEFAULTS, newTrust } from './model.js';
+import { MATCH_KEYS, OTHERWISE_KEYS } from './valuemap.js';
 
 export { LIMITS };
 
 const ITEM_ID = /^[a-z]_[A-Za-z0-9_-]{6,24}$/;
 const SOURCE_KEYS = SOURCES.map((s) => s.key);
-const LIBRARY_KINDS = ['claim', 'permit', 'deny', 'raw', 'lookup'];
+const LIBRARY_KINDS = ['claim', 'permit', 'deny', 'raw', 'lookup', 'valuemap'];
 // 'ref' links a profile rule to a rule library entry.
 const RULE_KINDS = [...LIBRARY_KINDS, 'ref'];
 // Control characters other than tab / newline are never legitimate here.
@@ -133,6 +134,33 @@ function lookup(l, path) {
   };
 }
 
+// "Translate values": the claim to translate, the cases and the claim to send.
+function valueMap(m, path) {
+  obj(m, path);
+  const cases = arr(m.cases ?? [], `${path}.cases`, LIMITS.cases).map((c, i) => {
+    const at = `${path}.cases[${i}]`;
+    obj(c, at);
+    return {
+      id: id(c.id, `${at}.id`),
+      match: oneOf(c.match ?? 'equals', MATCH_KEYS, `${at}.match`),
+      value: str(c.value, `${at}.value`, LIMITS.value),
+      output: str(c.output, `${at}.output`, LIMITS.value),
+    };
+  });
+  uniqueIds(cases, `${path}.cases`);
+  return {
+    inputType: str(m.inputType, `${path}.inputType`, LIMITS.uri),
+    inputIssuer: str(m.inputIssuer, `${path}.inputIssuer`, LIMITS.uri),
+    outputType: str(m.outputType, `${path}.outputType`, LIMITS.uri),
+    cases,
+    ignoreCase: bool(m.ignoreCase ?? false, `${path}.ignoreCase`),
+    firstMatch: bool(m.firstMatch ?? true, `${path}.firstMatch`),
+    otherwise: oneOf(m.otherwise ?? 'none', OTHERWISE_KEYS, `${path}.otherwise`),
+    otherValue: str(m.otherValue, `${path}.otherValue`, LIMITS.value),
+    add: bool(m.add ?? false, `${path}.add`),
+  };
+}
+
 function ruleBody(r, path, kinds) {
   obj(r, path);
   const conditions = arr(r.conditions ?? [], `${path}.conditions`, LIMITS.conditions)
@@ -146,6 +174,7 @@ function ruleBody(r, path, kinds) {
     text: str(r.text, `${path}.text`, LIMITS.rawText, { multiline: true }),
     ...claimFields(r, path),
     ...(r.kind === 'lookup' ? { lookup: lookup(r.lookup, `${path}.lookup`) } : {}),
+    ...(r.kind === 'valuemap' ? { valuemap: valueMap(r.valuemap, `${path}.valuemap`) } : {}),
   };
 }
 

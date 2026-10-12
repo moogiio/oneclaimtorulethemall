@@ -22,6 +22,8 @@ export const LIMITS = {
   profiles: 50,
   rules: 500,
   conditions: 20,
+  // Cases of a "Translate values" rule.
+  cases: 200,
   short: 200,
   uri: 512,
   value: 2048,
@@ -130,7 +132,7 @@ export const RULE_SETS = [
   {
     key: 'issuanceTransform', label: 'Issuance Transform', title: 'Claims to send',
     adfs: 'Issuance Transform Rules', profileType: 'app', psParam: 'IssuanceTransformRules',
-    kinds: ['claim', 'lookup', 'raw'],
+    kinds: ['claim', 'lookup', 'valuemap', 'raw'],
     empty: 'No claims are sent yet. Start with a quick start, or pick rules from your rule library.',
     help: {
       what: 'Decides which information about the user (claims) goes into the token sent to the application, for example e-mail address, name or groups.',
@@ -142,7 +144,7 @@ export const RULE_SETS = [
   {
     key: 'acceptanceTransform', label: 'Acceptance Transform', title: 'Claims to accept',
     adfs: 'Acceptance Transform Rules', profileType: 'idp', psParam: 'AcceptanceTransformRules',
-    kinds: ['claim', 'lookup', 'raw'],
+    kinds: ['claim', 'lookup', 'valuemap', 'raw'],
     empty: 'Nothing is accepted yet, so no claims from this identity provider reach your applications. Start with a quick start.',
     help: {
       what: 'Decides which claims AD FS accepts from this identity provider. Claims that are not accepted here are dropped and never reach your applications.',
@@ -251,6 +253,17 @@ export function claimTypeLabel(uri) {
 }
 
 export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// "a, b and c".
+export const andList = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0] || '');
+
+// Claims every user who signs in with an AD account has before the claim
+// rules of an application run.
+export const SIGN_IN_TYPES = [
+  WINDOWS_ACCOUNT_NAME, GROUP_SID, AUTHN_METHOD, AUTHN_METHODS_REFS, INSIDE_CORP,
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/primarysid',
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/primarygroupsid',
+];
 
 export function ruleSetMeta(key) {
   return RULE_SETS.find((s) => s.key === key);

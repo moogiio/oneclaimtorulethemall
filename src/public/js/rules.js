@@ -5,6 +5,7 @@ import {
 } from '/lib/catalog.js';
 import { EncodeError, generateRule } from '/lib/generate.js';
 import { newLookup } from '/lib/lookup.js';
+import { newValueMap } from '/lib/valuemap.js';
 import { CLAIM_DEFAULTS, RAW_RULE_TEMPLATE, newLibraryRule, newRule } from '/lib/model.js';
 
 // Everything a search can match: name, claim types, attributes, values,
@@ -16,6 +17,11 @@ function searchText(rule, title) {
     const l = rule.lookup;
     parts.push(l.store, l.query);
     for (const x of [...l.inputs, ...l.outputs]) parts.push(x.type, claimTypeLabel(x.type));
+  }
+  if (rule.valuemap) {
+    const m = rule.valuemap;
+    for (const type of [m.inputType, m.outputType]) parts.push(type, claimTypeLabel(type));
+    for (const c of m.cases) parts.push(c.value, c.output);
   }
   return parts.filter(Boolean).join('\n').toLowerCase();
 }
@@ -29,6 +35,7 @@ export const LIBRARY_KINDS = [
   { key: 'permit', label: 'Permit access' },
   { key: 'deny', label: 'Deny access' },
   { key: 'lookup', label: 'Look up in a store' },
+  { key: 'valuemap', label: 'Translate values' },
   { key: 'raw', label: 'Custom' },
 ];
 
@@ -150,6 +157,11 @@ export const rules = {
     if (kind === 'lookup') {
       rule.conditions = [];
       if (!rule.lookup) rule.lookup = newLookup();
+    }
+    // So does a translation: the claim it translates.
+    if (kind === 'valuemap') {
+      rule.conditions = [];
+      if (!rule.valuemap) rule.valuemap = newValueMap();
     }
     // Claim settings only belong to "send a claim" rules.
     if (kind !== 'claim') Object.assign(rule, CLAIM_DEFAULTS);

@@ -1,0 +1,144 @@
+<div class="valuemap stack">
+  <template x-if="!isRuleLibrary()">
+    <label class="field"><span>Rule name (optional)</span>
+      <input class="input" x-model="rule.label" placeholder="Translate values" maxlength="200" autocomplete="off">
+    </label>
+  </template>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">1</span> Claim to translate</legend>
+    <div class="map-input">
+      <input :id="'f-map-input-' + rule.id" class="input mono" list="claim-types" x-model.trim="rule.valuemap.inputType" maxlength="512"
+        aria-label="Claim type to translate" :aria-describedby="lookupDescribedBy(rule, 'map-input')" @blur="lookupTouch(rule, 'map-input')"
+        placeholder="Claim type, like authentication_method or http://…" spellcheck="false" autocomplete="off">
+      <button class="btn btn-ghost" type="button" @click="mapToggleIssuer(rule)" x-text="mapIssuerLabel(rule)"
+        :aria-expanded="mapIssuerOpen(rule) ? 'true' : 'false'"></button>
+    </div>
+    <template x-for="field in lookupFields('map-input')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+    <template x-if="mapIssuerOpen(rule)">
+      <label class="field" @focusin="mapKeepIssuer(rule)"><span>Only from this issuer</span>
+        <input :id="'f-map-issuer-' + rule.id" class="input mono" x-model.trim="rule.valuemap.inputIssuer" maxlength="512"
+          :aria-describedby="lookupDescribedBy(rule, 'map-issuer')" placeholder="Any issuer, or AD AUTHORITY" spellcheck="false" autocomplete="off">
+      </label>
+    </template>
+    <template x-for="field in lookupFields('map-issuer')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">2</span> Cases</legend>
+    <p class="hint" x-text="mapCasesHint(rule)"></p>
+    <div class="map-case map-head" aria-hidden="true">
+      <span class="mp-slot"></span><span class="mp-how">When the value</span><span class="mp-value"></span><span class="mp-arrow"></span><span class="mp-send">Send</span><span class="mp-tools"></span>
+    </div>
+    <template x-for="(c, n) in rule.valuemap.cases" :key="c.id">
+      <div class="lookup-item">
+        <div class="map-case">
+          <span class="lookup-slot mp-slot" x-text="(n + 1) + '.'"></span>
+          <label class="field mp-how"><span class="sr-only" x-text="'Case ' + (n + 1) + ': how the value is compared'"></span>
+            <select class="select" x-model="c.match">
+              <template x-for="m in mapMatches()" :key="m.key">
+                <option :value="m.key" x-text="m.label"></option>
+              </template>
+            </select>
+          </label>
+          <label class="field mp-value"><span class="sr-only" x-text="'Case ' + (n + 1) + ': value to look for'"></span>
+            <input :id="'f-map-value-' + c.id + '-' + rule.id" class="input mono" x-model="c.value" maxlength="2048" :placeholder="mapValuePlaceholder(c)"
+              :aria-describedby="lookupDescribedBy(rule, 'map-value-' + c.id)" @blur="lookupTouch(rule, 'map-value-' + c.id)" spellcheck="false" autocomplete="off">
+          </label>
+          <svg class="icon mp-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+          <label class="field mp-send"><span class="sr-only" x-text="'Case ' + (n + 1) + ': value to send'"></span>
+            <input :id="'f-map-send-' + c.id + '-' + rule.id" class="input" x-model="c.output" maxlength="2048" placeholder="Value to send, like Digital Identity"
+              :aria-describedby="lookupDescribedBy(rule, 'map-send-' + c.id)" @blur="lookupTouch(rule, 'map-send-' + c.id)"
+              @keydown.enter.prevent="mapEnter(rule, c)" spellcheck="false" autocomplete="off">
+          </label>
+          <div class="mp-tools">
+            <button :id="'mv-up-' + c.id + '-' + rule.id" class="btn btn-ghost btn-icon" type="button" @click="mapMoveCase(rule, c, -1)" :disabled="mapIsFirst(rule, c)"
+              :aria-label="'Move case ' + (n + 1) + ' up'"><svg class="icon"><use href="#i-up"/></svg></button>
+            <button :id="'mv-down-' + c.id + '-' + rule.id" class="btn btn-ghost btn-icon" type="button" @click="mapMoveCase(rule, c, 1)" :disabled="mapIsLast(rule, c)"
+              :aria-label="'Move case ' + (n + 1) + ' down'"><svg class="icon"><use href="#i-down"/></svg></button>
+            <button class="btn btn-ghost btn-icon" type="button" @click="mapRemoveCase(rule, c)" :aria-label="'Remove case ' + (n + 1)">
+              <svg class="icon"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+        <template x-for="field in mapCaseFields(c)" :key="field">
+          <!-- @include partials/lookupissues.html -->
+        </template>
+      </div>
+    </template>
+    <div class="row row-wrap">
+      <button :id="'f-map-cases-' + rule.id" class="btn btn-ghost" type="button" @click="mapAddCase(rule)" :disabled="mapFull(rule)">
+        <svg class="icon icon-sm"><use href="#i-plus"/></svg> Add a case</button>
+      <button class="btn btn-ghost" type="button" @click="mapTogglePaste(rule)" :aria-expanded="mapPasteOpen(rule) ? 'true' : 'false'" :disabled="mapFull(rule)">
+        <svg class="icon icon-sm"><use href="#i-files"/></svg> Paste a list</button>
+    </div>
+    <template x-for="field in lookupFields('map-cases')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+    <template x-if="mapPasteOpen(rule)">
+      <div class="map-paste stack">
+        <label class="field"><span>One case per line: the value to look for, then the value to send</span>
+          <textarea :id="'f-map-paste-' + rule.id" class="textarea mono" rows="5" x-model="mapPaste.text" spellcheck="false"
+            :aria-describedby="'help-map-paste-' + rule.id" placeholder="digitalidentity	Digital Identity&#10;bankid = BankID&#10;freja; Freja eID"></textarea>
+        </label>
+        <p class="hint" :id="'help-map-paste-' + rule.id">Copy two columns from Excel, or split each line with =, ; or a comma.</p>
+        <label class="field map-paste-how"><span>Compare the pasted values with</span>
+          <select class="select" x-model="mapPaste.match">
+            <template x-for="m in mapMatches()" :key="m.key">
+              <option :value="m.key" x-text="m.label"></option>
+            </template>
+          </select>
+        </label>
+        <div role="status"><p class="hint" x-text="mapPasteSummary()"></p></div>
+        <div class="row row-wrap">
+          <button class="btn btn-primary" type="button" @click="mapAddPasted(rule)" :disabled="!mapPasteCount()">Add these cases</button>
+          <button class="btn btn-ghost" type="button" @click="mapClosePaste()">Cancel</button>
+        </div>
+      </div>
+    </template>
+    <label class="check"><input type="checkbox" x-model="rule.valuemap.firstMatch" :aria-describedby="'help-map-first-' + rule.id">
+      <span>Stop at the first case that matches, so each user gets one value at most</span></label>
+    <p class="hint" :id="'help-map-first-' + rule.id">Each case after the first checks that there is no claim to send yet, so that claim type must not come from
+      anywhere before this rule.</p>
+    <label class="check"><input type="checkbox" x-model="rule.valuemap.ignoreCase">
+      <span>Ignore upper and lower case (patterns are used as written, add (?i) to them)</span></label>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">3</span> <span x-text="mapOutputTitle()"></span></legend>
+    <input :id="'f-map-output-' + rule.id" class="input mono" list="claim-types" x-model.trim="rule.valuemap.outputType" maxlength="512"
+      :aria-label="mapOutputTitle()" :aria-describedby="lookupDescribedBy(rule, 'map-output')" @blur="lookupTouch(rule, 'map-output')"
+      placeholder="Claim type, like authenticationMethod_displayName or http://…" spellcheck="false" autocomplete="off">
+    <template x-for="field in lookupFields('map-output')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+    <div class="field">
+      <span :id="'map-other-label-' + rule.id">When no case matches any value of the user, send</span>
+      <div class="seg" role="group" :aria-labelledby="'map-other-label-' + rule.id">
+        <template x-for="o in mapOtherwise()" :key="o.key">
+          <button type="button" :class="{ on: isMapOtherwise(rule, o.key) }" :aria-pressed="isMapOtherwise(rule, o.key) ? 'true' : 'false'"
+            @click="setMapOtherwise(rule, o.key)" x-text="o.label"></button>
+        </template>
+      </div>
+    </div>
+    <template x-if="isMapOtherwise(rule, 'value')">
+      <label class="field"><span>Value for anything else</span>
+        <input :id="'f-map-other-' + rule.id" class="input" x-model="rule.valuemap.otherValue" maxlength="2048" placeholder="Like Other"
+          :aria-describedby="lookupDescribedBy(rule, 'map-other')" @blur="lookupTouch(rule, 'map-other')" spellcheck="false" autocomplete="off">
+      </label>
+    </template>
+    <template x-for="field in lookupFields('map-other')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+    <label class="check"><input type="checkbox" x-model="rule.valuemap.add">
+      <span x-text="mapAddText()"></span></label>
+  </fieldset>
+
+  <details class="lookup-preview">
+    <summary>Show the rules as AD FS gets them</summary>
+    <pre tabindex="0" class="code compact" x-text="lookupPreview(rule)" aria-label="Rule text"></pre>
+  </details>
+</div>

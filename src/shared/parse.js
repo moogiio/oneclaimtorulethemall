@@ -335,6 +335,10 @@ export function ruleIo(rule) {
     inputs.push(...rule.lookup.inputs.map((i) => i.type).filter(Boolean));
     outputs.push(...rule.lookup.outputs.map((o) => o.type).filter(Boolean));
     if (!rule.lookup.add) issued.push(...outputs);
+  } else if (rule.kind === 'valuemap') {
+    if (rule.valuemap.inputType) inputs.push(rule.valuemap.inputType);
+    if (rule.valuemap.outputType) outputs.push(rule.valuemap.outputType);
+    if (!rule.valuemap.add) issued.push(...outputs);
   } else if (rule.kind === 'raw') {
     for (const { ast } of parseRulesCached(rule.text)) {
       if (!ast) continue;

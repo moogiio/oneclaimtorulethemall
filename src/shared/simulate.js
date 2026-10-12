@@ -16,6 +16,7 @@ import {
 import { describeAstCondition } from './explain.js';
 import { describeCondition } from './model.js';
 import { parseRules } from './parse.js';
+import { valueMapStep } from './valuemap.js';
 
 const T = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/';
 const NAME = `${T}name`;
@@ -324,20 +325,28 @@ export function runRuleSet(workspace, profile, key, startClaims, user) {
       entry.message = broken ? `Syntax: ${broken.error}` : 'The rule is empty';
       continue;
     }
+    // Claims a rule issues are only visible to the rules after it, and are
+    // only kept when every part of it could be simulated.
+    let next = input;
+    const sent = [];
     try {
-      // Claims a rule issues are only visible to the rules after it.
-      for (const { ast } of chunks) {
-        const { conditions, firings } = evaluateConditions(ast, input);
-        const texts = conditionTexts(rule, ast);
-        entry.conditions.push(...conditions.map((c, i) => ({ text: texts[i], ok: c.ok })));
-        const made = firings.flatMap((bound) => actionClaims(ast.action, bound, user));
-        input = [...input, ...made];
-        if (ast.action.verb === 'issue') {
-          output.push(...made);
-          entry.issued.push(...made);
+      for (const [n, { ast }] of chunks.entries()) {
+        const { conditions, firings } = evaluateConditions(ast, next);
+        // A translation shows one line per case: did it send its value.
+        if (rule.kind === 'valuemap') {
+          entry.conditions.push({ text: valueMapStep(rule.valuemap, n), ok: firings.length > 0 });
+        } else {
+          const texts = conditionTexts(rule, ast);
+          entry.conditions.push(...conditions.map((c, i) => ({ text: texts[i], ok: c.ok })));
         }
+        const made = firings.flatMap((bound) => actionClaims(ast.action, bound, user));
+        next = [...next, ...made];
+        if (ast.action.verb === 'issue') sent.push(...made);
         if (firings.length) entry.status = made.length ? 'issued' : 'nothing';
       }
+      input = next;
+      output.push(...sent);
+      entry.issued.push(...sent);
     } catch (err) {
       if (!(err instanceof Unsupported)) throw err;
       entry.status = 'unsupported';

@@ -2,7 +2,7 @@
 // user, asks an attribute store with their values, and sends what the store
 // returns as claims. In claim rule language that is a custom rule with
 // store, types, query and param; here it is built by clicking. Pure ESM.
-import { AD_STORE, claimTypeLabel } from './catalog.js';
+import { AD_STORE, andList as list, claimTypeLabel } from './catalog.js';
 import { newId } from './model.js';
 
 // The stores a lookup can ask. Only Active Directory is built in; the
@@ -72,8 +72,6 @@ export function adQueryAttributes(query) {
 
 // The name of input `id` in the rule text: c1, c2 in the order of the inputs.
 export const inputVariable = (lookup, id) => `c${lookup.inputs.findIndex((i) => i.id === id) + 1}`;
-
-const list = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0] || '');
 
 function paramText(lookup, param) {
   const input = lookup.inputs.find((i) => i.id === param.input);

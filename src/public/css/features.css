@@ -223,3 +223,30 @@ dialog.dialog-trouble { width: min(820px, calc(100vw - 32px)); }
   .lookup-sub { padding-left: 0; }
   .lookup-issues { margin-left: 0; }
 }
+
+/* Translate values: cases in rows, "value → value to send" */
+.rule-kind.valuemap { background: var(--warning-bg); color: var(--warning-text); }
+.map-input { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.map-input .input { flex: 1 1 260px; min-width: 0; }
+.map-case {
+  display: grid; align-items: center; gap: 8px;
+  grid-template-columns: 42px minmax(8.5rem, 10rem) minmax(0, 1fr) 18px minmax(0, 1fr) auto;
+  grid-template-areas: "slot how value arrow send tools";
+}
+.mp-slot { grid-area: slot; }
+.mp-how { grid-area: how; min-width: 0; }
+.mp-how .select { width: 100%; }
+.mp-value { grid-area: value; min-width: 0; }
+.mp-arrow { grid-area: arrow; color: var(--text-soft); }
+.mp-send { grid-area: send; min-width: 0; }
+.mp-tools { grid-area: tools; display: flex; gap: 2px; }
+.map-head { font-size: .8125rem; font-weight: 500; color: var(--text-soft); margin-bottom: -4px; }
+/* Each row is its own grid: the heading keeps the room of the three row buttons. */
+.map-head .mp-tools { width: calc(3 * 36px + 4px); }
+@media (pointer: coarse) { .map-head .mp-tools { width: calc(3 * 44px + 4px); } }
+.map-paste { padding: 12px; border: 1px dashed var(--border-strong, var(--border)); border-radius: 8px; background: var(--surface-2, var(--surface)); }
+.map-paste-how { max-width: 260px; }
+@media (max-width: 700px) {
+  .map-case { grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: "slot how tools" ". value ." ". send ."; }
+  .map-head, .mp-arrow { display: none; }
+}

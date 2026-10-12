@@ -16,7 +16,7 @@ const TRANSFORMS = [
   { key: 'regex', label: 'with a pattern replaced' },
 ];
 
-// Custom rules the builder can take over, by rule text (a yes or no that
+// Custom rules the builders can take over, by rule text (a question that
 // every custom rule card asks on each render, so the answer is kept).
 const takeOver = new Map();
 const TAKE_OVER_MAX = 200;
@@ -203,28 +203,44 @@ export const lookuprules = {
     return generateRuleOrNull(rule) || 'The rule text shows here once the parts above are filled in.';
   },
 
-  // A custom rule the builder can take over: the lookup it would become, or
-  // null. Only rules that ask a store are tried; answers are kept by text.
-  rawAsLookup(rule) {
-    if (rule.kind !== 'raw' || !this.canAdd('lookup')) return null;
+  // A custom rule a builder can take over: the lookup or translation it
+  // would become, or null. Only rules that ask a store or send fixed values
+  // are tried, and only offered where the step takes that kind of rule.
+  // Answers are kept by text.
+  rawAsClicks(rule) {
+    if (rule.kind !== 'raw') return null;
     const text = String(rule.text || '');
     if (!takeOver.has(text)) {
       const chunks = parseRulesCached(text).filter((c) => c.raw.trim());
-      const asksStore = chunks.length === 1 && chunks[0].ast && chunks[0].ast.action.args.some((a) => a.name === 'store');
-      const { rules } = asksStore ? importRules(text, ['lookup']) : { rules: [] };
+      const args = (chunk) => (chunk.ast ? chunk.ast.action.args.map((a) => a.name) : []);
+      const asksStore = chunks.length === 1 && args(chunks[0]).includes('store');
+      const translates = chunks.length > 0 && chunks.length <= LIMITS.cases + 1 && chunks.every((c) => args(c).sort().join() === 'type,value');
+      const { rules } = asksStore || translates ? importRules(text, ['lookup', 'valuemap']) : { rules: [] };
       if (takeOver.size >= TAKE_OVER_MAX) takeOver.delete(takeOver.keys().next().value);
-      takeOver.set(text, rules.length === 1 && rules[0].kind === 'lookup' ? rules[0] : null);
+      takeOver.set(text, rules.length === 1 && ['lookup', 'valuemap'].includes(rules[0].kind) ? rules[0] : null);
     }
-    return takeOver.get(text);
+    const found = takeOver.get(text);
+    return found && this.canAdd(found.kind) ? found : null;
+  },
+
+  rawClicksKind(rule) {
+    const found = this.rawAsClicks(rule);
+    return found ? found.kind : '';
+  },
+
+  rawClicksText(rule) {
+    return this.rawClicksKind(rule) === 'valuemap'
+      ? 'This rule translates the values of a claim, case by case. You can build and change it with clicks instead of text.'
+      : 'This rule asks an attribute store. You can build and change it with clicks instead of text.';
   },
 
   editRawWithClicks(rule) {
-    const found = this.rawAsLookup(rule);
+    const found = this.rawAsClicks(rule);
     if (!found) return;
     this.labelChange('Edit the custom rule with clicks');
-    rule.kind = 'lookup';
+    rule.kind = found.kind;
     // A copy: the kept answer may be asked again for another rule.
-    rule.lookup = JSON.parse(JSON.stringify(found.lookup));
+    rule[found.kind] = JSON.parse(JSON.stringify(found[found.kind]));
     rule.label = rule.label || found.label;
     rule.text = '';
     this.toastUndo('The custom rule is now built with clicks, and does the same as before');

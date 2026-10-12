@@ -5,39 +5,14 @@ import {
 import {
   EncodeError, SID, encodable, generateRule, isGroupName, resolveRule, rulesIndex,
 } from './generate.js';
+import { fieldIssues, issue, regexIssues } from './issues.js';
 import { adQueryAttributes, queryPlaceholders } from './lookup.js';
 import { metadataIssues, readMetadata } from './metadata.js';
 import { createsTrust, sameClaimSource } from './model.js';
 import { parseRulesCached, ruleIo } from './parse.js';
+import { lintValueMap, valueMapSetIssues } from './valuemaplint.js';
 
-const issue = (severity, message, ruleId = null) => ({ severity, message, ruleId });
-
-const INLINE_OPTIONS = /^\(\?[imnsx-]+\)/;
-const anchoredEnd = (re) => /(^|[^\\])(\\\\)*\$$/.test(re);
-
-export function isAnchored(re) {
-  const body = String(re).replace(INLINE_OPTIONS, '');
-  return body.startsWith('^') && anchoredEnd(re);
-}
-
-// .NET regex checked with the JS engine after removing inline option groups.
-// Constructs JS lacks are skipped rather than reported as errors.
-export function regexIssues(re, what) {
-  if (!re) return [];
-  const out = [];
-  // No one-click fix: only the author knows whether a prefix, a suffix or
-  // the whole value was meant.
-  if (!isAnchored(re)) out.push(issue('warning', `${what} is not anchored with ^ and $, so it also matches parts of values`));
-  const js = String(re).replace(/\(\?[imnsx-]+\)/g, '');
-  if (!/\(\?'|\(\?>|\\[pPAZzG]/.test(js)) {
-    try {
-      new RegExp(js);
-    } catch (err) {
-      out.push(issue('warning', `${what} looks invalid: ${err.message.replace(/^Invalid regular expression: /, '')}`));
-    }
-  }
-  return out;
-}
+export { isAnchored, regexIssues } from './issues.js';
 
 const CLAIM_TEXT_FIELDS = [
   ['type', 'Claim type'], ['store', 'Attribute store'], ['attribute', 'AD attribute'],
@@ -161,13 +136,9 @@ const condKey = (conds) => JSON.stringify((conds || []).map(({ type, op, value, 
 // with the `field` it is about, so the builder shows them where they belong.
 function lintLookup(rule) {
   const l = rule.lookup;
-  const out = [];
-  const at = (severity, message, field) => out.push({ ...issue(severity, message, rule.id), field });
-  // An empty field the builder asks to fill in: shown there once the field was left.
-  const empty = (message, field) => out.push({ ...issue('error', message, rule.id), field, required: true });
-  const quoted = (value, what, field) => {
-    if (!encodable(value)) at('error', `${what} contains a double quote, a line break or ends with a backslash`, field);
-  };
+  const {
+    out, at, empty, quoted,
+  } = fieldIssues(rule);
   if (!l.inputs.length) at('error', 'Add at least one claim the lookup starts from', 'lookup-inputs');
   for (const input of l.inputs) {
     if (!input.type) empty('Choose the claim type the lookup needs', `lookup-input-${input.id}`);
@@ -233,10 +204,11 @@ function lintLookup(rule) {
 function singleRuleIssues(rule, key) {
   const out = [];
   try {
-    // Lookups are checked whole by lintLookup, which finds every problem;
+    // Lookups and translations are checked whole, which finds every problem;
     // the generator still runs, so nothing it refuses can slip through.
     if (rule.kind === 'lookup') out.push(...lintLookup(rule));
-    if (rule.kind !== 'lookup' || !out.some((i) => i.severity === 'error')) generateRule(rule);
+    if (rule.kind === 'valuemap') out.push(...lintValueMap(rule));
+    if (!out.some((i) => i.severity === 'error')) generateRule(rule);
   } catch (err) {
     if (!(err instanceof EncodeError)) throw err;
     const found = { ...issue('error', err.message, rule.id), field: err.field };
@@ -288,6 +260,10 @@ export function lintRuleSet(workspace, profile, key) {
           + 'e-mail, for example). For users without one, ask your own attribute store', rule.id),
         field: 'lookup-store',
       });
+    }
+    if (rule.kind === 'valuemap') {
+      const before = rules.findIndex((r, j) => j < i && io[j].outputs.includes(rule.valuemap.outputType));
+      out.push(...valueMapSetIssues(rule, before === -1 ? 0 : position(rules[before]), key, profile));
     }
     if (rule.kind === 'claim') {
       if (rule.source === 'ldap' && key === 'acceptanceTransform') {

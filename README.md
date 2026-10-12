@@ -13,6 +13,7 @@ Build AD FS claim rules by clicking instead of writing claim rule language by ha
 - A setup checklist per application and an AD FS glossary
 - Rule library with linked rules: change once, applies everywhere
 - Conditions: AD group membership (by name or SID), corporate network, MFA or any claim
+- Builders for complex rules: look up several claims in any attribute store, and translate values case by case like a switch (paste the list from Excel)
 - Linter with one-click fixes for common claim rule mistakes
 - Try it: simulate a sign-in for a test user and see every rule's result and the token
 - Sign-in fails? Paste the AD FS error page or event: it is explained in plain words, with what to do and a click to the setting that fixes it

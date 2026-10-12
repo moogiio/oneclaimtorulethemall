@@ -85,7 +85,11 @@
               <!-- @include partials/lookup.html -->
             </template>
 
-            <template x-if="rule.kind !== 'raw' && rule.kind !== 'lookup'">
+            <template x-if="rule.kind === 'valuemap'">
+              <!-- @include partials/valuemap.html -->
+            </template>
+
+            <template x-if="rule.kind !== 'raw' && rule.kind !== 'lookup' && rule.kind !== 'valuemap'">
               <!-- @include partials/conditions.html -->
             </template>
             <template x-if="rule.kind === 'raw'">

@@ -5,11 +5,12 @@ import {
   AD_AUTHORITY, AD_STORE, DENY, LIMITS, NAME_ID, NAMEID_FORMAT_PROPERTY, PERMIT, WINDOWS_ACCOUNT_NAME,
 } from './catalog.js';
 import {
-  EncodeError, escapeRegex, generateRule, isPassThrough,
+  ESCAPED_LITERAL, EncodeError, escapeRegex, generateRule, isPassThrough, unescapeLiteral,
 } from './generate.js';
 import { newId, newRule } from './model.js';
 import { parseRules } from './parse.js';
 import { CONTROL } from './validate.js';
+import { valueMapAt } from './valuemapimport.js';
 
 class NoMatch extends Error {}
 const fail = () => { throw new NoMatch(); };
@@ -22,9 +23,11 @@ const cleanLabel = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, L
 
 // "^(?i)literal$" back to the literal, but only when every escape is one that
 // escapeRegex produces. \d, \w, \s and the like are real regex, not literals.
+const IGNORE_CASE_LITERAL = new RegExp(String.raw`^\^\(\?i\)(${ESCAPED_LITERAL})\$$`);
+
 function unescapeLiteralRegex(re) {
-  const m = /^\^\(\?i\)((?:\\[\\^$.*+?()[\]{}|#]|[^\\^$.*+?()[\]{}|#])*)\$$/.exec(re);
-  return m ? m[1].replace(/\\(.)/g, '$1') : null;
+  const m = IGNORE_CASE_LITERAL.exec(re);
+  return m ? unescapeLiteral(m[1]) : null;
 }
 
 // One condition from criteria of an EXISTS / NOT EXISTS (or an unused selector).
@@ -291,12 +294,20 @@ function fitsLimits(item) {
 
 // Returns { rules, recognized, raw, errors } with one-off rules for a profile.
 // Recognized rules whose kind is not in `allowedKinds` are kept as raw text.
-export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'lookup', 'raw']) {
+export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'lookup', 'valuemap', 'raw']) {
   const rules = [];
   const errors = [];
-  let recognized = 0;
-  for (const chunk of parseRules(String(text || '').replace(CONTROL_ALL, ''))) {
-    if (!chunk.raw.trim()) continue;
+  const chunks = parseRules(String(text || '').replace(CONTROL_ALL, '')).filter((chunk) => chunk.raw.trim());
+  for (let at = 0; at < chunks.length; at++) {
+    const chunk = chunks[at];
+    // Rules that translate one claim's values, one rule per value, become
+    // one "Translate values" rule.
+    const group = allowedKinds.includes('valuemap') ? valueMapAt(chunks, at) : null;
+    if (group) {
+      rules.push(newRule('valuemap', { label: cleanLabel(group.label), valuemap: group.valuemap }));
+      at += group.count - 1;
+      continue;
+    }
     let items = null;
     if (chunk.ast) {
       // The first recognizer whose rules fit wins; one that does not fit
@@ -332,7 +343,6 @@ export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'lo
       }
     }
     if (built) {
-      recognized++;
       rules.push(...built);
       continue;
     }
@@ -343,5 +353,10 @@ export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'lo
     const label = chunk.ast ? cleanLabel(chunk.ast.annotations.RuleName) : '';
     rules.push(newRule('raw', { label, text: chunk.raw }));
   }
-  return { rules, recognized, raw: rules.filter((r) => r.kind === 'raw').length, errors };
+  // Counted in rules of the app, like rules.length: one translation is
+  // made of several AD FS rules, one AD FS rule may become several claims.
+  const raw = rules.filter((r) => r.kind === 'raw').length;
+  return {
+    rules, recognized: rules.length - raw, raw, errors,
+  };
 }

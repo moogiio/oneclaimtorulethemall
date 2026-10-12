@@ -69,7 +69,7 @@ test('parser accepts NOT EXISTS, NotExists, exists and COUNT', () => {
 test('import recognizes only rules it can reproduce and keeps the rest verbatim', () => {
   const result = importRules(ADFS_EXPORT);
   assert.equal(result.errors.length, 0);
-  assert.equal(result.recognized, 4);
+  assert.equal(result.recognized, 5);
   assert.equal(result.raw, 3);
   assert.deepEqual(result.rules.map((r) => r.kind), ['claim', 'claim', 'raw', 'claim', 'raw', 'raw', 'claim', 'claim']);
   const claimRules = result.rules.filter((r) => r.kind === 'claim');
