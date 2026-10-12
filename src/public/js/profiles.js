@@ -11,6 +11,8 @@ import { CONTROL } from '/lib/validate.js';
 import { plainCopy } from './io.js';
 
 const cloneConditions = (conds) => conds.map((c) => ({ ...c, id: newId('k') }));
+// A lookup goes along as its own copy.
+const lookupCopy = (rule) => (rule.lookup ? { lookup: plainCopy(rule.lookup) } : {});
 
 export const profiles = {
   currentProfile() {
@@ -373,7 +375,7 @@ export const profiles = {
     this.labelChange(`Save “${this.ruleTitle(rule)}” to the rule library`);
     const lib = newLibraryRule(rule.kind, {
       ...pickClaimFields(rule), label: rule.label || this.ruleTitle(rule),
-      conditions: cloneConditions(rule.conditions), text: rule.text,
+      conditions: cloneConditions(rule.conditions), text: rule.text, ...lookupCopy(rule),
     });
     this.ws.rules.push(lib);
     const rules = this.currentRules();
@@ -388,7 +390,7 @@ export const profiles = {
     this.labelChange(`Detach “${this.ruleTitle(rule)}”`);
     const copy = newRule(lib.kind, {
       ...pickClaimFields(lib), label: lib.label,
-      conditions: cloneConditions(lib.conditions), text: lib.text, enabled: rule.enabled,
+      conditions: cloneConditions(lib.conditions), text: lib.text, enabled: rule.enabled, ...lookupCopy(lib),
     });
     const rules = this.currentRules();
     rules.splice(byId(rules, rule.id), 1, copy);

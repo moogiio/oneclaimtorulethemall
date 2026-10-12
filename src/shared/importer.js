@@ -184,6 +184,76 @@ function recognizeIncoming(ast) {
   return [{ fields, conditions, label }];
 }
 
+// "Look up in an attribute store": claims with variables (Type, and maybe
+// Value and Issuer, all ==), then issue or add with store, types, query and
+// params that are a claim's value, maybe through RegExReplace.
+function recognizeLookup(ast) {
+  if (!ast.conditions.length || ast.conditions.some((c) => c.kind !== 'select' || !c.variable)) fail();
+  const inputs = new Map();
+  for (const cond of ast.conditions) {
+    if (inputs.has(cond.variable)) fail();
+    const at = (prop) => cond.criteria.filter((c) => c.prop === prop);
+    const [type, ...moreTypes] = at('Type');
+    if (!type || moreTypes.length || cond.criteria.some((c) => c.op !== '==' || !['Type', 'Value', 'Issuer'].includes(c.prop))) fail();
+    if (at('Value').length > 1 || at('Issuer').length > 1) fail();
+    const [value, issuer] = [at('Value')[0], at('Issuer')[0]];
+    // An empty field means "no check" in the builder, so a check for an empty value stays raw.
+    if ((value && !value.value) || (issuer && !issuer.value)) fail();
+    inputs.set(cond.variable, {
+      id: newId('k'), type: type.value, value: value ? value.value : '', issuer: issuer ? issuer.value : '',
+    });
+  }
+  const args = new Map();
+  const params = [];
+  for (const arg of ast.action.args) {
+    if (arg.name === 'param') params.push(arg.value);
+    else if (args.has(arg.name) || !['store', 'types', 'query'].includes(arg.name)) fail();
+    else args.set(arg.name, arg.value);
+  }
+  const store = args.get('store');
+  const types = args.get('types');
+  const query = args.get('query');
+  if (!store || store.kind !== 'string' || !types || types.kind !== 'list' || !query || query.kind !== 'string') fail();
+  const source = (ref) => (ref && ref.kind === 'ref' && ref.prop === 'Value' && !ref.key && inputs.has(ref.variable) ? inputs.get(ref.variable).id : fail());
+  const lookup = {
+    storeKind: store.value === AD_STORE ? 'ad' : (/^\s*select\b/i.test(query.value) ? 'sql' : 'other'),
+    store: store.value,
+    query: query.value,
+    inputs: [...inputs.values()],
+    params: params.map((p) => {
+      const param = {
+        id: newId('k'), input: '', transform: 'none', prefix: '', pattern: '', replacement: '',
+      };
+      if (p.kind === 'ref') return { ...param, input: source(p) };
+      if (p.kind !== 'call' || p.name.toLowerCase() !== 'regexreplace' || p.args.length !== 3) fail();
+      const [from, pattern, replacement] = p.args;
+      if (pattern.kind !== 'string' || replacement.kind !== 'string') fail();
+      // Text in front only when the replacement has no $ substitution ($$ is a plain $).
+      if (pattern.value === '^' && !replacement.value.replace(/\$\$/g, '').includes('$')) {
+        return {
+          ...param, input: source(from), transform: 'prefix', prefix: replacement.value.replace(/\$\$/g, '$'),
+        };
+      }
+      return {
+        ...param, input: source(from), transform: 'regex', pattern: pattern.value, replacement: replacement.value,
+      };
+    }),
+    outputs: types.items.map((type) => ({ id: newId('k'), type })),
+    add: ast.action.verb === 'add',
+  };
+  return [{ kind: 'lookup', fields: { lookup }, conditions: [], label: ast.annotations.RuleName }];
+}
+
+// The lookup's lists and texts fit what the workspace may hold.
+function lookupFits(l) {
+  const long = (value, max) => String(value || '').length > max;
+  return [l.inputs, l.params, l.outputs].every((items) => items.length <= LIMITS.conditions)
+    && !long(l.store, LIMITS.short) && !long(l.query, LIMITS.value)
+    && !l.inputs.some((i) => long(i.type, LIMITS.uri) || long(i.issuer, LIMITS.uri) || long(i.value, LIMITS.value))
+    && !l.outputs.some((o) => long(o.type, LIMITS.uri))
+    && !l.params.some((p) => long(p.prefix, LIMITS.value) || long(p.pattern, LIMITS.value) || long(p.replacement, LIMITS.value));
+}
+
 // Static values and permit / deny rules. Issuer copies change the issued
 // claim's Issuer, which the generator cannot reproduce, so they stay raw.
 function recognizeStatic(ast) {
@@ -213,6 +283,7 @@ const FIELD_LIMITS = {
 };
 
 function fitsLimits(item) {
+  if (item.fields && item.fields.lookup) return lookupFits(item.fields.lookup);
   if (item.fields && Object.entries(FIELD_LIMITS).some(([f, max]) => (item.fields[f] || '').length > max)) return false;
   if (item.conditions.length > LIMITS.conditions) return false;
   return item.conditions.every((c) => c.type.length <= LIMITS.uri && c.value.length <= LIMITS.value && c.issuer.length <= LIMITS.uri);
@@ -220,7 +291,7 @@ function fitsLimits(item) {
 
 // Returns { rules, recognized, raw, errors } with one-off rules for a profile.
 // Recognized rules whose kind is not in `allowedKinds` are kept as raw text.
-export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'raw']) {
+export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'lookup', 'raw']) {
   const rules = [];
   const errors = [];
   let recognized = 0;
@@ -228,10 +299,15 @@ export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'ra
     if (!chunk.raw.trim()) continue;
     let items = null;
     if (chunk.ast) {
-      for (const recognize of [recognizeLdap, recognizeIncoming, recognizeStatic]) {
+      // The first recognizer whose rules fit wins; one that does not fit
+      // (a kind the step does not take) lets the next one try.
+      for (const recognize of [recognizeLdap, recognizeIncoming, recognizeStatic, recognizeLookup]) {
         try {
-          items = recognize(chunk.ast);
-          break;
+          const found = recognize(chunk.ast);
+          if (found.every((item) => allowedKinds.includes(item.kind || 'claim') && fitsLimits(item))) {
+            items = found;
+            break;
+          }
         } catch (err) {
           if (!(err instanceof NoMatch)) throw err;
         }
@@ -239,7 +315,6 @@ export function importRules(text, allowedKinds = ['claim', 'permit', 'deny', 'ra
     } else {
       errors.push(chunk.error);
     }
-    if (items && items.some((item) => !allowedKinds.includes(item.kind || 'claim') || !fitsLimits(item))) items = null;
 
     let built = null;
     if (items) {

@@ -9,6 +9,7 @@
       <svg class="icon" x-show="shownKind(rule) === 'permit'"><use href="#i-permit"/></svg>
       <svg class="icon" x-show="shownKind(rule) === 'deny'"><use href="#i-deny"/></svg>
       <svg class="icon" x-show="shownKind(rule) === 'raw'"><use href="#i-code"/></svg>
+      <svg class="icon" x-show="shownKind(rule) === 'lookup'"><use href="#i-database"/></svg>
     </span>
     <div class="rule-title">
       <strong>
@@ -59,7 +60,11 @@
       </div>
     </template>
 
-    <template x-if="!isLinked(rule) && !ruleKindIs(rule, 'raw')">
+    <template x-if="!isLinked(rule) && ruleKindIs(rule, 'lookup')">
+      <!-- @include partials/lookup.html -->
+    </template>
+
+    <template x-if="!isLinked(rule) && !ruleKindIs(rule, 'raw') && !ruleKindIs(rule, 'lookup')">
       <div class="stack">
         <div class="rule-controls">
           <label class="field"><span>Rule name (optional)</span>
@@ -91,6 +96,12 @@
         <label class="field"><span>Rule text</span>
           <textarea class="textarea mono" x-model="rule.text" spellcheck="false" rows="6"></textarea>
         </label>
+        <template x-if="rawAsLookup(rule)">
+          <div class="notice"><svg class="icon"><use href="#i-database"/></svg>
+            <span class="grow">This rule asks an attribute store. You can build and change it with clicks instead of text.</span>
+            <button class="btn" type="button" @click="editRawWithClicks(rule)">Edit with clicks</button>
+          </div>
+        </template>
       </div>
     </template>
 

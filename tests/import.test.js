@@ -126,9 +126,10 @@ test('rules the generator cannot encode (escaped quotes) stay raw instead of van
   assert.equal(generateRuleSet({ rules: [], profiles: [profile] }, profile, 'issuanceTransform').text, `${src}\n`);
 });
 
-test('LDAP rules without the AD issuer check or with extra criteria stay raw', () => {
+test('LDAP rules without the AD issuer check become lookups; extra criteria stay raw', () => {
   const ldap = (sel) => `c:[${sel}] => issue(store = "Active Directory", types = ("http://x/m"), query = ";mail;{0}", param = c.Value);`;
-  assert.equal(importRules(ldap(`Type == "${WAN}"`)).rules[0].kind, 'raw');
+  // The lookup builder reproduces it exactly; "Send a claim" only does the AD AUTHORITY form.
+  assert.equal(importRules(ldap(`Type == "${WAN}"`)).rules[0].kind, 'lookup');
   assert.equal(importRules(ldap(`Type == "${WAN}", Type =~ "^x", Issuer == "AD AUTHORITY"`)).rules[0].kind, 'raw');
   assert.equal(importRules(ldap(`Type == "${WAN}", Issuer == "AD AUTHORITY"`)).rules[0].kind, 'claim');
 });
@@ -163,10 +164,10 @@ test('regex escapes like \\d are not mistaken for literal characters', () => {
   assert.deepEqual([literal.op, literal.value], ['equalsIgnoreCase', 'admin\\d']);
 });
 
-test('joins stay raw unless only the presence of the issued claim matters', () => {
+test('joins stay raw unless only the presence of the issued claim matters, or they are store lookups', () => {
   const join = (type) => `c1:[Type == "http://a"] && c2:[Type == "http://b"] => issue(Type = "${type}", Value = "x");`;
   assert.equal(importRules(join('http://r')).rules[0].kind, 'raw');
   assert.equal(importRules(join('http://schemas.microsoft.com/authorization/claims/permit')).rules[0].kind, 'permit');
   const ldapJoin = 'c:[Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/windowsaccountname", Issuer == "AD AUTHORITY"] && c2:[Type == "http://g"] => issue(store = "Active Directory", types = ("http://x/m"), query = ";mail;{0}", param = c.Value);';
-  assert.equal(importRules(ldapJoin).rules[0].kind, 'raw');
+  assert.equal(importRules(ldapJoin).rules[0].kind, 'lookup');
 });

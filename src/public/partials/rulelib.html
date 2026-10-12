@@ -81,7 +81,11 @@
               <!-- @include partials/claimfields.html -->
             </template>
 
-            <template x-if="rule.kind !== 'raw'">
+            <template x-if="rule.kind === 'lookup'">
+              <!-- @include partials/lookup.html -->
+            </template>
+
+            <template x-if="rule.kind !== 'raw' && rule.kind !== 'lookup'">
               <!-- @include partials/conditions.html -->
             </template>
             <template x-if="rule.kind === 'raw'">

@@ -4,6 +4,8 @@ import {
   AD_AUTHORITY, AUTHN_METHODS_REFS, CLAIM_TYPES, GROUP_SID, LIMITS, NAME_ID, OPS, RULE_SETS, adAttributeLabel, claimTypeLabel,
 } from '/lib/catalog.js';
 import { explainRule } from '/lib/explain.js';
+import { defaultRuleName } from '/lib/generate.js';
+import { lookupSubtitle } from '/lib/lookup.js';
 import {
   indexById as byId, describeCondition, newCondition, newRule, setClaimSource, sourceSummary,
 } from '/lib/model.js';
@@ -45,7 +47,7 @@ export const rulecards = {
     if (!shown) return 'Missing library rule';
     if (shown.label) return shown.label;
     if (shown.kind === 'claim') return `Send ${claimTypeLabel(shown.type) || 'a claim'}`;
-    return { permit: 'Permit', deny: 'Deny', raw: 'Custom rule' }[shown.kind] || 'Rule';
+    return { permit: 'Permit', deny: 'Deny', raw: 'Custom rule' }[shown.kind] || defaultRuleName(shown);
   },
 
   // The rule in plain words; linked rules are explained as the library rule.
@@ -64,6 +66,7 @@ export const rulecards = {
       return `${prefix}${verb} ${what} · ${sourceSummary(shown)}`;
     }
     if (shown.kind === 'raw') return `${prefix}Custom rule in the AD FS claim rule language`;
+    if (shown.kind === 'lookup') return prefix + lookupSubtitle(shown.lookup);
     const verb = shown.kind === 'permit' ? 'Permits' : 'Denies';
     return prefix + (shown.conditions.length ? `${verb} users who match all conditions` : `${verb} everyone`);
   },
@@ -98,11 +101,15 @@ export const rulecards = {
   claimTypeOptions() {
     const known = new Set(CLAIM_TYPES.map((t) => t.uri));
     const custom = [];
-    const add = (rule) => {
-      if (rule.kind === 'claim' && rule.type && !known.has(rule.type)) {
-        known.add(rule.type);
-        custom.push({ label: rule.label || rule.type, uri: rule.type });
+    const addType = (uri, label) => {
+      if (uri && !known.has(uri)) {
+        known.add(uri);
+        custom.push({ label: label || uri, uri });
       }
+    };
+    const add = (rule) => {
+      if (rule.kind === 'claim') addType(rule.type, rule.label);
+      if (rule.kind === 'lookup') [...rule.lookup.inputs, ...rule.lookup.outputs].forEach((x) => addType(x.type));
     };
     this.ws.rules.forEach(add);
     for (const profile of this.ws.profiles) {

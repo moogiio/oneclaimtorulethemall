@@ -130,7 +130,7 @@ export const RULE_SETS = [
   {
     key: 'issuanceTransform', label: 'Issuance Transform', title: 'Claims to send',
     adfs: 'Issuance Transform Rules', profileType: 'app', psParam: 'IssuanceTransformRules',
-    kinds: ['claim', 'raw'],
+    kinds: ['claim', 'lookup', 'raw'],
     empty: 'No claims are sent yet. Start with a quick start, or pick rules from your rule library.',
     help: {
       what: 'Decides which information about the user (claims) goes into the token sent to the application, for example e-mail address, name or groups.',

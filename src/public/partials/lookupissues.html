@@ -1,0 +1,14 @@
+<template x-if="lookupIssues(rule, field).length">
+  <div class="lookup-issues" :id="lookupIssueId(rule, field)" role="status">
+    <ul>
+      <template x-for="(item, n) in lookupIssues(rule, field)" :key="n">
+        <li :class="item.severity">
+          <svg class="icon icon-sm" x-show="item.severity === 'error'"><use href="#i-error"/></svg>
+          <svg class="icon icon-sm" x-show="item.severity === 'warning'"><use href="#i-alert"/></svg>
+          <svg class="icon icon-sm" x-show="item.severity === 'info'"><use href="#i-info"/></svg>
+          <span><span class="sr-only" x-text="item.severity + ': '"></span><span x-text="item.message"></span></span>
+        </li>
+      </template>
+    </ul>
+  </div>
+</template>

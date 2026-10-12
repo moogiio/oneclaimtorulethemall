@@ -75,6 +75,9 @@
       <template x-if="canAdd('deny')">
         <button class="btn" type="button" @click="addDeny()"><svg class="icon"><use href="#i-deny"/></svg> Deny</button>
       </template>
+      <template x-if="canAdd('lookup')">
+        <button class="btn" type="button" @click="addLookup()"><svg class="icon"><use href="#i-database"/></svg> Look up in an attribute store</button>
+      </template>
       <button class="btn" type="button" @click="addRaw()"><svg class="icon"><use href="#i-code"/></svg> Custom rule</button>
     </div>
   </div>

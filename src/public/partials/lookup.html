@@ -1,0 +1,163 @@
+<div class="lookup stack">
+  <label class="field"><span>Rule name (optional)</span>
+    <input class="input" x-model="rule.label" placeholder="Look up in an attribute store" maxlength="200" autocomplete="off">
+  </label>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">1</span> Claims it starts from</legend>
+    <p class="hint">The rule only runs for users who have all of these claims. Each gets a short name, c1, c2 and so on, for the values in step 3.</p>
+    <template x-for="input in rule.lookup.inputs" :key="input.id">
+      <div class="lookup-item">
+        <div class="lookup-input">
+          <span class="lookup-var" x-text="lookupVar(rule, input)"></span>
+          <input :id="'f-lookup-input-' + input.id + '-' + rule.id" class="input mono lk-main" list="claim-types" x-model.trim="input.type" maxlength="512"
+            :aria-label="'Claim type of ' + lookupVar(rule, input)" :aria-describedby="lookupDescribedBy(rule, 'lookup-input-' + input.id)"
+            @blur="lookupTouch(rule, 'lookup-input-' + input.id)" placeholder="Claim type, like Type_A or http://…" spellcheck="false" autocomplete="off">
+          <button class="btn btn-ghost lk-more" type="button" @click="lookupToggleMore(rule, input)" x-text="lookupMoreLabel(rule, input)"
+            :aria-expanded="lookupMoreOpen(rule, input) ? 'true' : 'false'"></button>
+          <button class="btn btn-ghost btn-icon lk-remove" type="button" @click="lookupRemoveInput(rule, input)" :aria-label="'Remove claim ' + lookupVar(rule, input)">
+            <svg class="icon"><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <template x-if="lookupMoreOpen(rule, input)">
+          <div class="lookup-row lookup-sub" @focusin="lookupKeepOpen(rule, input)">
+            <label class="field grow"><span>Only with this value</span>
+              <input :id="'f-lookup-value-' + input.id + '-' + rule.id" class="input mono" x-model="input.value" maxlength="2048" placeholder="Any value" spellcheck="false" autocomplete="off">
+            </label>
+            <label class="field grow"><span>Only from this issuer</span>
+              <input :id="'f-lookup-issuer-' + input.id + '-' + rule.id" class="input mono" x-model.trim="input.issuer" maxlength="512" placeholder="Any issuer, or AD AUTHORITY"
+                spellcheck="false" autocomplete="off">
+            </label>
+          </div>
+        </template>
+        <template x-for="field in lookupInputFields(input)" :key="field">
+          <!-- @include partials/lookupissues.html -->
+        </template>
+      </div>
+    </template>
+    <div><button :id="'f-lookup-inputs-' + rule.id" class="btn btn-ghost" type="button" @click="lookupAddInput(rule)" :disabled="lookupFull(rule, 'inputs')">
+      <svg class="icon icon-sm"><use href="#i-plus"/></svg> Add a claim</button></div>
+    <template x-for="field in lookupFields('lookup-inputs')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">2</span> Attribute store to ask</legend>
+    <div class="seg" role="group" aria-label="Attribute store type">
+      <template x-for="s in lookupStores()" :key="s.key">
+        <button type="button" :class="{ on: isLookupStore(rule, s.key) }" :aria-pressed="isLookupStore(rule, s.key) ? 'true' : 'false'"
+          @click="setLookupStore(rule, s.key)" x-text="s.label"></button>
+      </template>
+    </div>
+    <template x-if="!isLookupStore(rule, 'ad')">
+      <label class="field"><span>Name of the store in AD FS</span>
+        <input :id="'f-lookup-store-' + rule.id" class="input mono" x-model.trim="rule.lookup.store" maxlength="200" spellcheck="false" autocomplete="off"
+          :aria-describedby="lookupDescribedBy(rule, 'lookup-store')" @blur="lookupTouch(rule, 'lookup-store')" placeholder="As AD FS Management shows it">
+      </label>
+    </template>
+    <template x-for="field in lookupFields('lookup-store')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">3</span> Values to pass to the store</legend>
+    <p class="hint" x-text="lookupValuesHint(rule)"></p>
+    <template x-for="(param, n) in rule.lookup.params" :key="param.id">
+      <div class="lookup-item">
+        <div class="lookup-param">
+          <span class="lookup-slot" x-text="lookupSlot(rule, n)"></span>
+          <label class="field lk-main"><span class="sr-only" x-text="'Value ' + (n + 1) + ' comes from'"></span>
+            <select :id="'f-lookup-param-' + param.id + '-' + rule.id" class="select" x-model="param.input"
+              :aria-describedby="lookupDescribedBy(rule, 'lookup-param-' + param.id)">
+              <option value="">Choose a claim</option>
+              <template x-for="input in rule.lookup.inputs" :key="input.id">
+                <option :value="input.id" x-text="'The value of ' + lookupInputName(rule, input)"></option>
+              </template>
+            </select>
+          </label>
+          <label class="field lk-how"><span class="sr-only" x-text="'How value ' + (n + 1) + ' is passed'"></span>
+            <select class="select" x-model="param.transform">
+              <template x-for="t in lookupTransforms()" :key="t.key">
+                <option :value="t.key" x-text="t.label"></option>
+              </template>
+            </select>
+          </label>
+          <template x-if="param.transform === 'prefix'">
+            <label class="field lk-detail"><span class="sr-only" x-text="'Text in front of value ' + (n + 1)"></span>
+              <input :id="'f-lookup-prefix-' + param.id + '-' + rule.id" class="input mono" x-model="param.prefix" maxlength="2048" placeholder="Text in front, like A="
+                @blur="lookupTouch(rule, 'lookup-prefix-' + param.id)" spellcheck="false" autocomplete="off">
+            </label>
+          </template>
+          <button class="btn btn-ghost btn-icon lk-remove" type="button" @click="lookupRemoveParam(rule, param)" :aria-label="'Remove value ' + (n + 1)">
+            <svg class="icon"><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <template x-if="param.transform === 'regex'">
+          <div class="lookup-row lookup-sub">
+            <label class="field grow"><span>Replace this pattern (regex)</span>
+              <input :id="'f-lookup-pattern-' + param.id + '-' + rule.id" class="input mono" x-model="param.pattern" maxlength="2048" placeholder="^CONTOSO\\"
+                @blur="lookupTouch(rule, 'lookup-pattern-' + param.id)" spellcheck="false" autocomplete="off">
+            </label>
+            <label class="field grow"><span>With</span>
+              <input :id="'f-lookup-replacement-' + param.id + '-' + rule.id" class="input mono" x-model="param.replacement" maxlength="2048" placeholder="Nothing"
+                spellcheck="false" autocomplete="off">
+            </label>
+          </div>
+        </template>
+        <template x-for="field in lookupParamFields(param)" :key="field">
+          <!-- @include partials/lookupissues.html -->
+        </template>
+      </div>
+    </template>
+    <div><button class="btn btn-ghost" type="button" @click="lookupAddParam(rule)" :disabled="lookupFull(rule, 'params')">
+      <svg class="icon icon-sm"><use href="#i-plus"/></svg> Add a value</button></div>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">4</span> Query</legend>
+    <label class="field"><span class="sr-only">Query for the attribute store</span>
+      <input :id="'f-lookup-query-' + rule.id" class="input mono" x-model="rule.lookup.query" :placeholder="lookupQueryExample(rule)" maxlength="2048"
+        :aria-describedby="lookupQueryDescribedBy(rule)"
+        @blur="lookupTouch(rule, 'lookup-query')" spellcheck="false" autocomplete="off">
+    </label>
+    <p class="hint" :id="'help-lookup-query-' + rule.id" x-text="lookupStoreHelp(rule)"></p>
+    <template x-for="field in lookupFields('lookup-query')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+  </fieldset>
+
+  <fieldset class="lookup-part">
+    <legend><span class="lookup-num">5</span> Claims to send with what the store returns</legend>
+    <p class="hint">One claim type per value the store returns, in the same order.</p>
+    <template x-for="(output, n) in rule.lookup.outputs" :key="output.id">
+      <div class="lookup-item">
+        <div class="lookup-row">
+          <span class="lookup-slot" x-text="(n + 1) + '.'"></span>
+          <input :id="'f-lookup-output-' + output.id + '-' + rule.id" class="input mono grow" list="claim-types" x-model.trim="output.type" maxlength="512"
+            :aria-label="'Claim type ' + (n + 1) + ' to send'" :aria-describedby="lookupDescribedBy(rule, 'lookup-output-' + output.id)"
+            @blur="lookupTouch(rule, 'lookup-output-' + output.id)" placeholder="Claim type, like urn:type_a or http://…" spellcheck="false" autocomplete="off">
+          <button class="btn btn-ghost btn-icon" type="button" @click="lookupRemoveOutput(rule, output)" :aria-label="'Remove claim type ' + (n + 1)">
+            <svg class="icon"><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <template x-for="field in lookupFields('lookup-output-' + output.id)" :key="field">
+          <!-- @include partials/lookupissues.html -->
+        </template>
+      </div>
+    </template>
+    <div><button :id="'f-lookup-outputs-' + rule.id" class="btn btn-ghost" type="button" @click="lookupAddOutput(rule)" :disabled="lookupFull(rule, 'outputs')">
+      <svg class="icon icon-sm"><use href="#i-plus"/></svg> Add a claim type</button></div>
+    <template x-for="field in lookupFields('lookup-outputs')" :key="field">
+      <!-- @include partials/lookupissues.html -->
+    </template>
+    <label class="check"><input type="checkbox" x-model="rule.lookup.add">
+      <span>Keep them for the rules after this one, instead of sending them to the application</span></label>
+  </fieldset>
+
+  <details class="lookup-preview">
+    <summary>Show the rule as AD FS gets it</summary>
+    <pre tabindex="0" class="code compact" x-text="lookupPreview(rule)" aria-label="Rule text"></pre>
+  </details>
+</div>

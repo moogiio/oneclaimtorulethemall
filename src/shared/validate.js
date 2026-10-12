@@ -10,7 +10,7 @@ export { LIMITS };
 
 const ITEM_ID = /^[a-z]_[A-Za-z0-9_-]{6,24}$/;
 const SOURCE_KEYS = SOURCES.map((s) => s.key);
-const LIBRARY_KINDS = ['claim', 'permit', 'deny', 'raw'];
+const LIBRARY_KINDS = ['claim', 'permit', 'deny', 'raw', 'lookup'];
 // 'ref' links a profile rule to a rule library entry.
 const RULE_KINDS = [...LIBRARY_KINDS, 'ref'];
 // Control characters other than tab / newline are never legitimate here.
@@ -93,6 +93,46 @@ function condition(c, path) {
 }
 
 // Fields shared by profile rules and rule library entries.
+// "Look up in an attribute store": the claims it needs, the store and query,
+// the values it passes and the claim types it sends.
+function lookup(l, path) {
+  obj(l, path);
+  const items = (key) => arr(l[key] ?? [], `${path}.${key}`, LIMITS.conditions);
+  const inputs = items('inputs').map((x, i) => {
+    const at = `${path}.inputs[${i}]`;
+    obj(x, at);
+    return {
+      id: id(x.id, `${at}.id`), type: str(x.type, `${at}.type`, LIMITS.uri), issuer: str(x.issuer, `${at}.issuer`, LIMITS.uri), value: str(x.value, `${at}.value`, LIMITS.value),
+    };
+  });
+  const params = items('params').map((x, i) => {
+    const at = `${path}.params[${i}]`;
+    obj(x, at);
+    return {
+      id: id(x.id, `${at}.id`),
+      input: x.input ? id(x.input, `${at}.input`) : '',
+      transform: oneOf(x.transform ?? 'none', ['none', 'prefix', 'regex'], `${at}.transform`),
+      prefix: str(x.prefix, `${at}.prefix`, LIMITS.value),
+      pattern: str(x.pattern, `${at}.pattern`, LIMITS.value),
+      replacement: str(x.replacement, `${at}.replacement`, LIMITS.value),
+    };
+  });
+  const outputs = items('outputs').map((x, i) => {
+    obj(x, `${path}.outputs[${i}]`);
+    return { id: id(x.id, `${path}.outputs[${i}].id`), type: str(x.type, `${path}.outputs[${i}].type`, LIMITS.uri) };
+  });
+  for (const [list, key] of [[inputs, 'inputs'], [params, 'params'], [outputs, 'outputs']]) uniqueIds(list, `${path}.${key}`);
+  return {
+    storeKind: oneOf(l.storeKind ?? 'ad', ['ad', 'sql', 'other'], `${path}.storeKind`),
+    store: str(l.store, `${path}.store`, LIMITS.short),
+    query: str(l.query, `${path}.query`, LIMITS.value),
+    inputs,
+    params,
+    outputs,
+    add: bool(l.add ?? false, `${path}.add`),
+  };
+}
+
 function ruleBody(r, path, kinds) {
   obj(r, path);
   const conditions = arr(r.conditions ?? [], `${path}.conditions`, LIMITS.conditions)
@@ -105,6 +145,7 @@ function ruleBody(r, path, kinds) {
     conditions,
     text: str(r.text, `${path}.text`, LIMITS.rawText, { multiline: true }),
     ...claimFields(r, path),
+    ...(r.kind === 'lookup' ? { lookup: lookup(r.lookup, `${path}.lookup`) } : {}),
   };
 }
 

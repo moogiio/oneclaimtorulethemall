@@ -145,7 +145,56 @@ function nameIdProperty(rule) {
 // their text, so this is only their name in the app.
 export function defaultRuleName(rule) {
   if (rule.kind === 'claim') return claimTypeLabel(rule.type) || 'Send a claim';
-  return { permit: 'Permit', deny: 'Deny' }[rule.kind] || 'Custom rule';
+  return { permit: 'Permit', deny: 'Deny', lookup: 'Look up in an attribute store' }[rule.kind] || 'Custom rule';
+}
+
+// "Look up in an attribute store", laid out like hand-written rules of this
+// kind: one claim per line, then one argument of issue() per line. `field`
+// of an error names the part of the lookup it is about.
+function lookupRule(rule) {
+  const l = rule.lookup;
+  if (!l || !l.inputs.length) throw new EncodeError('Add at least one claim the lookup starts from', 'lookup-inputs');
+  const vars = new Map(l.inputs.map((input, i) => [input.id, `c${i + 1}`]));
+  const selectors = l.inputs.map((input) => {
+    const field = `lookup-input-${input.id}`;
+    if (!input.type) throw new EncodeError('Choose the claim type the lookup needs', field);
+    const criteria = [`Type == ${q(input.type, 'Claim type', field)}`];
+    if (input.value) criteria.push(`Value == ${q(input.value, 'Value', `lookup-value-${input.id}`)}`);
+    if (input.issuer) criteria.push(`Issuer == ${q(input.issuer, 'Issuer', `lookup-issuer-${input.id}`)}`);
+    return `${vars.get(input.id)}:[${criteria.join(', ')}]`;
+  });
+  if (!l.store) throw new EncodeError('Enter the name of the attribute store, as AD FS Management shows it', 'lookup-store');
+  if (!l.query) throw new EncodeError('Enter the query for the attribute store', 'lookup-query');
+  if (!l.outputs.length) throw new EncodeError('Add at least one claim type to send', 'lookup-outputs');
+  const types = l.outputs.map((o) => {
+    if (!o.type) throw new EncodeError('Choose the claim type to send', `lookup-output-${o.id}`);
+    return q(o.type, 'Claim type', `lookup-output-${o.id}`);
+  });
+  const params = l.params.map((p) => {
+    const field = `lookup-param-${p.id}`;
+    const variable = vars.get(p.input);
+    if (!variable) throw new EncodeError('Choose which claim this value comes from', field);
+    if (p.transform === 'prefix') {
+      if (!p.prefix) throw new EncodeError('Enter the text to put in front', `lookup-prefix-${p.id}`);
+      // A replacement treats $ as special ($0, $_ ...); $$ is a plain $.
+      return `RegExReplace(${variable}.Value, "^", ${q(p.prefix.replace(/\$/g, '$$$$'), 'Text in front', `lookup-prefix-${p.id}`)})`;
+    }
+    if (p.transform === 'regex') {
+      if (!p.pattern) throw new EncodeError('Enter the pattern to replace', `lookup-pattern-${p.id}`);
+      return `RegExReplace(${variable}.Value, ${q(p.pattern, 'Pattern', `lookup-pattern-${p.id}`)}, `
+        + `${q(p.replacement, 'Replacement', `lookup-replacement-${p.id}`)})`;
+    }
+    return `${variable}.Value`;
+  });
+  const args = [
+    `store = ${q(l.store, 'Attribute store', 'lookup-store')}`,
+    `types = (${types.join(', ')})`,
+    `query = ${q(l.query, 'Query', 'lookup-query')}`,
+    ...params.map((p) => `param = ${p}`),
+  ];
+  const lines = [ruleName(rule.label || defaultRuleName(rule)), selectors[0], ...selectors.slice(1).map((s) => ` && ${s}`)];
+  lines.push(` => ${l.add ? 'add' : 'issue'}(${args[0]},`, ...args.slice(1, -1).map((a) => ` ${a},`), ` ${args[args.length - 1]});`);
+  return lines.join('\n');
 }
 
 function claimRule(rule) {
@@ -206,6 +255,7 @@ export function generateRule(input, rulesById = new Map()) {
     return assemble(name, [], rule.conditions || [], `issue(Type = "${type}", Value = "true")`);
   }
   if (rule.kind === 'claim') return claimRule(rule);
+  if (rule.kind === 'lookup') return lookupRule(rule);
   throw new EncodeError(`Unknown rule kind "${rule.kind}"`);
 }
 

@@ -331,6 +331,10 @@ export function ruleIo(rule) {
     if (rule.type) outputs.push(rule.type);
     issued.push(...outputs);
     if (rule.source === 'incoming' && rule.inputType) inputs.push(rule.inputType);
+  } else if (rule.kind === 'lookup') {
+    inputs.push(...rule.lookup.inputs.map((i) => i.type).filter(Boolean));
+    outputs.push(...rule.lookup.outputs.map((o) => o.type).filter(Boolean));
+    if (!rule.lookup.add) issued.push(...outputs);
   } else if (rule.kind === 'raw') {
     for (const { ast } of parseRulesCached(rule.text)) {
       if (!ast) continue;

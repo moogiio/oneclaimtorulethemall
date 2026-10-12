@@ -5,6 +5,7 @@ import {
 import {
   EncodeError, SID, encodable, generateRule, isGroupName, resolveRule, rulesIndex,
 } from './generate.js';
+import { adQueryAttributes, queryPlaceholders } from './lookup.js';
 import { metadataIssues, readMetadata } from './metadata.js';
 import { createsTrust, sameClaimSource } from './model.js';
 import { parseRulesCached, ruleIo } from './parse.js';
@@ -156,12 +157,86 @@ function authorizationIssues(rules) {
 
 const condKey = (conds) => JSON.stringify((conds || []).map(({ type, op, value, issuer }) => [type, op, value, issuer]));
 
+// Checks of a "Look up in an attribute store" rule, all at once and each
+// with the `field` it is about, so the builder shows them where they belong.
+function lintLookup(rule) {
+  const l = rule.lookup;
+  const out = [];
+  const at = (severity, message, field) => out.push({ ...issue(severity, message, rule.id), field });
+  // An empty field the builder asks to fill in: shown there once the field was left.
+  const empty = (message, field) => out.push({ ...issue('error', message, rule.id), field, required: true });
+  const quoted = (value, what, field) => {
+    if (!encodable(value)) at('error', `${what} contains a double quote, a line break or ends with a backslash`, field);
+  };
+  if (!l.inputs.length) at('error', 'Add at least one claim the lookup starts from', 'lookup-inputs');
+  for (const input of l.inputs) {
+    if (!input.type) empty('Choose the claim type the lookup needs', `lookup-input-${input.id}`);
+    quoted(input.type, 'The claim type', `lookup-input-${input.id}`);
+    quoted(input.value, 'The value', `lookup-value-${input.id}`);
+    quoted(input.issuer, 'The issuer', `lookup-issuer-${input.id}`);
+  }
+  if (!l.store) empty('Enter the name of the attribute store, as AD FS Management shows it', 'lookup-store');
+  quoted(l.store, 'The store name', 'lookup-store');
+  if (!l.query) empty('Enter the query for the attribute store', 'lookup-query');
+  quoted(l.query, 'The query', 'lookup-query');
+  if (!l.outputs.length) at('error', 'Add at least one claim type to send', 'lookup-outputs');
+  for (const o of l.outputs) {
+    if (!o.type) empty('Choose the claim type to send', `lookup-output-${o.id}`);
+    quoted(o.type, 'The claim type', `lookup-output-${o.id}`);
+  }
+  l.params.forEach((p) => {
+    if (!l.inputs.some((i) => i.id === p.input)) at('error', 'Choose which claim this value comes from', `lookup-param-${p.id}`);
+    if (p.transform === 'prefix') {
+      if (!p.prefix) empty('Enter the text to put in front', `lookup-prefix-${p.id}`);
+      quoted(p.prefix, 'The text in front', `lookup-prefix-${p.id}`);
+    }
+    if (p.transform === 'regex') {
+      if (!p.pattern) empty('Enter the pattern to replace', `lookup-pattern-${p.id}`);
+      quoted(p.pattern, 'The pattern', `lookup-pattern-${p.id}`);
+      quoted(p.replacement, 'The replacement', `lookup-replacement-${p.id}`);
+      // Anchoring does not apply to a replacement: it may well replace a part.
+      for (const x of regexIssues(p.pattern, 'The pattern').filter((r) => !/anchored/.test(r.message))) at(x.severity, x.message, `lookup-pattern-${p.id}`);
+    }
+  });
+  // {0}, {1} go with the values in order in Active Directory and SQL queries.
+  // Other stores get the values themselves and decide on the query format.
+  if (l.query && l.storeKind !== 'other') {
+    const used = queryPlaceholders(l.query);
+    const missing = used.filter((n) => n >= l.params.length);
+    if (missing.length) {
+      at('error', `The query uses {${missing[0]}}, but there ${l.params.length === 1 ? 'is 1 value' : `are ${l.params.length} values`} to fill in. Add a value below`, 'lookup-query');
+    }
+    l.params.forEach((p, n) => {
+      if (!used.includes(n)) at('warning', `The query has no {${n}}, so this value is not used`, `lookup-param-${p.id}`);
+    });
+  }
+  if (l.query && l.storeKind === 'ad') {
+    const attributes = adQueryAttributes(l.query);
+    if (!attributes || !attributes.length || !l.query.split(';')[2].trim()) {
+      at('error', 'AD FS reads Active Directory queries as ;mail,displayName;{0}: the attributes between two semicolons, then {0} for the user', 'lookup-query');
+    } else if (l.outputs.length && attributes.length !== l.outputs.length) {
+      at('error', `The query reads ${attributes.length} AD attribute${attributes.length === 1 ? '' : 's'} and sends ${l.outputs.length} claim type${l.outputs.length === 1 ? '' : 's'}. `
+        + 'Each attribute goes to the claim type in the same place, so the numbers must match', 'lookup-outputs');
+    }
+  }
+  if (l.storeKind !== 'ad' && l.store) {
+    at('info', `AD FS must have an attribute store named "${l.store}" (AD FS Management, Service, Attribute Stores)`, 'lookup-store');
+  }
+  if (l.inputs.length > 1) {
+    at('info', `Needs ${l.inputs.length} claims at once. If the user has several of one, the rule runs once per combination and can send duplicates`, 'lookup-inputs');
+  }
+  return out;
+}
+
 // Checks that only depend on the rule itself (also used for library rules).
 // For linked rules `linkedId` tells the UI that the fix is in the library.
 function singleRuleIssues(rule, key) {
   const out = [];
   try {
-    generateRule(rule);
+    // Lookups are checked whole by lintLookup, which finds every problem;
+    // the generator still runs, so nothing it refuses can slip through.
+    if (rule.kind === 'lookup') out.push(...lintLookup(rule));
+    if (rule.kind !== 'lookup' || !out.some((i) => i.severity === 'error')) generateRule(rule);
   } catch (err) {
     if (!(err instanceof EncodeError)) throw err;
     const found = { ...issue('error', err.message, rule.id), field: err.field };

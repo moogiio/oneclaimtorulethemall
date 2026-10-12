@@ -4,6 +4,7 @@ import {
   LIMITS, RULE_SETS, claimTypeLabel, profileTypeMeta, ruleSetMeta,
 } from '/lib/catalog.js';
 import { EncodeError, generateRule } from '/lib/generate.js';
+import { newLookup } from '/lib/lookup.js';
 import { CLAIM_DEFAULTS, RAW_RULE_TEMPLATE, newLibraryRule, newRule } from '/lib/model.js';
 
 // Everything a search can match: name, claim types, attributes, values,
@@ -11,6 +12,11 @@ import { CLAIM_DEFAULTS, RAW_RULE_TEMPLATE, newLibraryRule, newRule } from '/lib
 function searchText(rule, title) {
   const parts = [title, rule.label, rule.type, claimTypeLabel(rule.type), rule.attribute, rule.inputType, rule.value, rule.text];
   for (const c of rule.conditions || []) parts.push(c.type, claimTypeLabel(c.type), c.value);
+  if (rule.lookup) {
+    const l = rule.lookup;
+    parts.push(l.store, l.query);
+    for (const x of [...l.inputs, ...l.outputs]) parts.push(x.type, claimTypeLabel(x.type));
+  }
   return parts.filter(Boolean).join('\n').toLowerCase();
 }
 
@@ -22,6 +28,7 @@ export const LIBRARY_KINDS = [
   { key: 'claim', label: 'Send a claim' },
   { key: 'permit', label: 'Permit access' },
   { key: 'deny', label: 'Deny access' },
+  { key: 'lookup', label: 'Look up in a store' },
   { key: 'raw', label: 'Custom' },
 ];
 
@@ -138,6 +145,11 @@ export const rules = {
     if (kind === 'raw') {
       rule.conditions = [];
       if (!rule.text) rule.text = RAW_RULE_TEMPLATE;
+    }
+    // A lookup has its own claims to start from instead of conditions.
+    if (kind === 'lookup') {
+      rule.conditions = [];
+      if (!rule.lookup) rule.lookup = newLookup();
     }
     // Claim settings only belong to "send a claim" rules.
     if (kind !== 'claim') Object.assign(rule, CLAIM_DEFAULTS);
